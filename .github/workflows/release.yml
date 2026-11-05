@@ -1,0 +1,95 @@
+name: release
+
+# Tag vX.Y.Z (matching pyproject.toml) -> test, build DMG, publish a GitHub Release.
+# Without signing secrets the DMG is ad-hoc signed (users see the Gatekeeper warning, see README).
+# With all of these repository secrets it is signed with Developer ID and notarized:
+#   MACOS_CERT_P12_BASE64   base64 of the "Developer ID Application" certificate exported as .p12
+#   MACOS_CERT_PASSWORD     password of that .p12
+#   MACOS_SIGN_IDENTITY     e.g. "Developer ID Application: Name (TEAMID)"
+#   NOTARY_APPLE_ID         Apple ID email
+#   NOTARY_APP_PASSWORD     app-specific password (appleid.apple.com)
+#   NOTARY_TEAM_ID          Team ID
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-14   # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v="$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)"
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != pyproject version v$v"; exit 1; }
+
+      - name: Test
+        run: python3 -m unittest discover -s tests -t .
+
+      - name: Install uv
+        run: python3 -m pip install --user uv && echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+
+      - name: Import signing certificate
+        id: signing
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_APP_PASSWORD: ${{ secrets.NOTARY_APP_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: |
+          if [ -z "$CERT_P12" ] || [ -z "$IDENTITY" ] || [ -z "$NOTARY_APPLE_ID" ] || [ -z "$NOTARY_APP_PASSWORD" ] || [ -z "$NOTARY_TEAM_ID" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signing secrets missing: building an ad-hoc signed DMG"
+            exit 0
+          fi
+          KC="$RUNNER_TEMP/build.keychain-db"
+          KCPASS="$(uuidgen)"
+          echo "::add-mask::$KCPASS"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KCPASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          xcrun notarytool store-credentials "ro-notary" --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_APP_PASSWORD" --keychain "$KC"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build DMG
+        env:
+          SIGN_IDENTITY: ${{ steps.signing.outputs.signed == 'true' && secrets.MACOS_SIGN_IDENTITY || '' }}
+          NOTARY_PROFILE: ${{ steps.signing.outputs.signed == 'true' && 'ro-notary' || '' }}
+        run: ./scripts/build-dmg.sh
+
+      - name: Verify Gatekeeper acceptance
+        if: steps.signing.outputs.signed == 'true'
+        run: spctl -a -vvv -t install build/ro-pet-*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ro-pet-dmg
+          path: build/ro-pet-*.dmg
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+        run: |
+          notes="Apple Silicon only. Drag ro-pet to Applications."
+          [ "$SIGNED" = "true" ] || notes="$notes This build is not notarized: see the README for the first-launch warning."
+          gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg --title "$GITHUB_REF_NAME" --notes "$notes"
+
+      - name: Remove temporary keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true

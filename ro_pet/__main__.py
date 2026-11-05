@@ -16,7 +16,11 @@ SWIFT_SRC = Path(__file__).with_name("pet_mac.swift")
 
 
 def ensure_mac_binary(force=False):
-    """Compile the Swift host once and cache it. Returns None when swiftc is not available."""
+    """Return the macOS host binary. An app bundle passes a prebuilt one in RO_PET_HOST (no swiftc needed).
+    Otherwise compile the Swift host once and cache it. Returns None when swiftc is not available."""
+    prebuilt = os.environ.get("RO_PET_HOST")
+    if prebuilt and not force and os.access(prebuilt, os.X_OK):
+        return Path(prebuilt)
     if not SWIFT_SRC.exists() or not shutil.which("swiftc"):
         return None
     cache = Path(tempfile.gettempdir()) / f"ro-pet-{os.getuid()}"

@@ -59,3 +59,26 @@ class ServerTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PrebuiltHostTest(unittest.TestCase):
+    def test_env_host_skips_swiftc(self):
+        import os
+        import stat
+        from pathlib import Path
+
+        from ro_pet.__main__ import ensure_mac_binary
+
+        with tempfile.TemporaryDirectory() as d:
+            fake = Path(d) / "host"
+            fake.write_text("#!/bin/sh\n")
+            fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
+            old = os.environ.get("RO_PET_HOST")
+            os.environ["RO_PET_HOST"] = str(fake)
+            try:
+                self.assertEqual(ensure_mac_binary(), fake)
+            finally:
+                if old is None:
+                    del os.environ["RO_PET_HOST"]
+                else:
+                    os.environ["RO_PET_HOST"] = old
