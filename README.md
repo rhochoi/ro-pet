@@ -26,6 +26,21 @@ Options: `--no-wander`, `--port N`, `--build-only`.
 
 Click the pet to open the panel, right-click it for the menu. Settings are saved to `~/.ro-pet/config.json` (override the folder with `RO_PET_HOME`).
 
+## Build a DMG (macOS, Apple Silicon)
+
+Bundles the Swift host and a standalone Python, so users need neither. Needs `swiftc` and [`uv`](https://astral.sh/uv).
+
+```bash
+./scripts/build-dmg.sh    # build/ro-pet-<version>.dmg, ad-hoc signed (friends only)
+```
+
+For public release, sign with a Developer ID certificate and notarize (credentials stay in your keychain):
+
+```bash
+xcrun notarytool store-credentials "ro-notary"    # once
+SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" NOTARY_PROFILE=ro-notary ./scripts/build-dmg.sh
+```
+
 ## Test
 
 ```bash
