@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ro.bot pet</title>
+<style>
+:root {
+    --ink: #1A1917;
+    --chalk: #F5F2EB;
+    --chalk-soft: #EFE9DC;
+    --chalk-muted: #7E786D;
+    --accent: #FF4B1F;
+    --accent-text: #BC2F0E;
+    --selected: var(--panel-fg);  
+    --bot-fill: var(--chalk);
+    --bot-eye: var(--ink);
+    --panel-bg: #FFFFFF;
+    --panel-fg: var(--ink);
+    --panel-soft: #F4F0E8;
+    --panel-border: rgba(26, 25, 23, 0.12);
+    --divider: #EAE7E0;
+    --muted: #6E695F;
+    --bubble-fill: var(--ink);
+    --bubble-fg: var(--chalk);
+  }
+body.theme-chalk {
+    --panel-bg: #232220;
+    --panel-fg: #F3EFE6;
+    --panel-soft: #2E2C29;
+    --panel-border: rgba(243, 239, 230, 0.14);
+    --divider: #33312E;
+    --muted: #9E988C;
+    --chalk-muted: #9E988C;
+    --accent-text: #FF6A42;
+    --selected: var(--panel-fg);  
+    --bubble-fill: #F3EFE6;
+    --bubble-fg: #1A1917;
+  }
+body.glass-dark {
+    --bot-fill: var(--ink);
+    --bot-eye: var(--chalk);
+  }
+* { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+    color: var(--panel-fg);
+    overflow: hidden;
+  }
+.stage {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding: 12px 14px 14px 14px;
+    box-sizing: border-box;
+  }
+body.place-top .stage {
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+body.place-left .stage {
+    align-items: flex-start;
+  }
+.bubble {
+    width: 356px;
+    background: var(--panel-bg);
+    color: var(--panel-fg);
+    border: 1.5px solid var(--panel-border);
+    border-radius: 20px;
+    box-shadow: 0 16px 36px rgba(15, 14, 13, 0.22);
+    padding: 12px 13px 12px 13px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    transition: opacity 0.16s ease, transform 0.16s cubic-bezier(.22,1,.36,1), background-color 0.2s ease, border-color 0.2s ease;
+    transform-origin: bottom right;
+    position: relative;
+    
+    height: calc(100vh - 158px);
+    min-height: 240px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+  }
+.bubble > .bubble-top, .bubble > .ask-form, .bubble > .toast { flex-shrink: 0; }
+.bubble > .tab-pane.active { min-height: 60px; }
+.bubble.hidden {
+    display: none;
+  }
+body.place-top .bubble {
+    margin-bottom: 0;
+    margin-top: 8px;
+    transform-origin: top right;
+  }
+body.place-left .bubble {
+    transform-origin: bottom left;
+  }
+body.place-top.place-left .bubble {
+    transform-origin: top left;
+  }
+.bubble-tail {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: var(--panel-bg);
+    border-right: 1.5px solid var(--panel-border);
+    border-bottom: 1.5px solid var(--panel-border);
+    bottom: -8px;
+    right: 38px;
+    transform: rotate(45deg);
+    border-bottom-right-radius: 3px;
+    z-index: 2;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+body.place-top .bubble-tail {
+    bottom: auto;
+    top: -8px;
+    border-right: none;
+    border-bottom: none;
+    border-left: 1.5px solid var(--panel-border);
+    border-top: 1.5px solid var(--panel-border);
+    border-top-left-radius: 3px;
+    border-bottom-right-radius: 0;
+  }
+body.place-left .bubble-tail {
+    right: auto;
+    left: 38px;
+  }
+.bubble-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: center;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--divider);
+    cursor: grab;
+  }
+.bubble-top:active { cursor: grabbing; }
+.top-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+.brand-tag {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: var(--panel-fg);
+  }
+.top-right {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+.close-x-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.14s, color 0.14s;
+  }
+.close-x-btn:hover {
+    background: var(--panel-soft);
+    color: var(--panel-fg);
+  }
+.tab-pane {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+.tab-pane.active {
+    display: flex;
+  }
+.settings-stream {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+.setting-block {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--divider);
+  }
+.setting-block:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+.block-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+.options-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+.opt-btn {
+    flex: 1;
+    min-width: 58px;
+    background: var(--panel-soft);
+    color: var(--panel-fg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 4px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.12s;
+  }
+.opt-btn:hover {
+    border-color: var(--panel-fg);
+  }
+.opt-btn.active {
+    background: var(--panel-fg);
+    color: var(--panel-bg);
+    border-color: var(--panel-fg);
+    font-weight: 800;
+  }
+.toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+  }
+.toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+.toggle-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--panel-fg);
+  }
+.toggle-sub {
+    font-size: 11px;
+    color: var(--muted);
+  }
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+  }
+.switch input { position: absolute; inset: 0; margin: 0; opacity: 0; width: 100%; height: 100%; }
+.switch:focus-within .slider { outline: 2px solid var(--panel-fg); outline-offset: 2px; }
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    transition: 0.2s;
+    border-radius: 999px;
+  }
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--panel-fg);
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+input:checked + .slider {
+    background-color: var(--selected);
+    border-color: var(--selected);
+  }
+input:checked + .slider:before {
+    transform: translateX(16px);
+    background-color: var(--panel-bg);
+  }
+.pet-wrap {
+    --u: 3.8px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: grab;
+    padding: 10px 14px 8px 14px;
+    overflow: visible;
+  }
+.pet-wrap:active { cursor: grabbing; }
+.ro-bot {
+    width: calc(23 * var(--u));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(1 * var(--u));
+    position: relative;
+    filter: drop-shadow(0 4px 10px rgba(15, 14, 13, 0.24));
+    overflow: visible;
+    margin-right: 2px;
+  }
+.pill {
+    background: var(--bot-fill);
+    border-radius: 999px;
+    transition:
+      width 0.34s cubic-bezier(.22, 1, .36, 1),
+      transform 0.28s cubic-bezier(.22, 1, .36, 1),
+      margin-bottom 0.25s cubic-bezier(.22, 1, .36, 1),
+      background-color 0.2s ease,
+      box-shadow 0.2s ease;
+    position: relative;
+  }
+.pill-head {
+    width: calc(19 * var(--u));
+    height: calc(8 * var(--u));
+  }
+.pill-body {
+    width: calc(15 * var(--u));
+    height: calc(6 * var(--u));
+  }
+.pill-base {
+    width: calc(23 * var(--u));
+    height: calc(6 * var(--u));
+  }
+.g-env { display: none; }
+.eyes {
+    position: absolute;
+    left: calc(9 * var(--u));
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: calc(2 * var(--u));
+    transition: transform 0.14s ease, top 0.18s ease, left 0.18s ease, gap 0.18s ease;
+  }
+.eye {
+    background: var(--bot-eye);
+    border-radius: 999px;
+    transition:
+      width 0.18s cubic-bezier(.22,1,.36,1),
+      height 0.18s cubic-bezier(.22,1,.36,1),
+      border-radius 0.18s ease,
+      transform 0.18s ease;
+  }
+.eye-l {
+    width: calc(2 * var(--u));
+    height: calc(4 * var(--u));
+  }
+.eye-r {
+    width: calc(1.75 * var(--u));
+    height: calc(3.25 * var(--u));
+  }
+.eye.blink { height: 2.5px !important; }
+.resolved-arch {
+    display: none;
+    width: calc(6.2 * var(--u));
+    height: calc(2.6 * var(--u));
+    stroke: var(--bot-eye);
+    stroke-width: 2.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+  }
+.mood-idle .pill-head, .action-breathe .pill-head { animation: breatheHead 3.0s infinite ease-in-out; }
+.mood-idle .pill-body, .action-breathe .pill-body { animation: breatheBody 3.0s infinite ease-in-out; }
+.mood-idle .pill-base, .action-breathe .pill-base { animation: breatheBase 3.0s infinite ease-in-out; }
+@keyframes breatheHead {
+    0%, 100% { transform: translateY(0) scaleX(1); }
+    22%      { transform: translateY(-2.2px) scaleX(0.985); }
+    55%      { transform: translateY(-1.0px) scaleX(1.025); }
+    80%      { transform: translateY(0.4px) scaleX(1); }
+  }
+@keyframes breatheBody {
+    0%, 100% { transform: translateY(0) scaleX(1); }
+    32%      { transform: translateY(-1.4px) scaleX(0.99); }
+    65%      { transform: translateY(-0.4px) scaleX(1.015); }
+    88%      { transform: translateY(0) scaleX(1); }
+  }
+@keyframes breatheBase {
+    0%, 100% { transform: translateY(0) scaleX(1); }
+    40%      { transform: translateY(-0.6px) scaleX(1); }
+    70%      { transform: translateY(0) scaleX(1.012); }
+  }
+
+.pet-wrap.docking {
+    transform: translateY(-6px) scale(calc(1.04 - 0.82 * var(--dock, 0)));
+    transform-origin: 50% 20%;
+    transition: transform 90ms linear;
+  }
+.pet-wrap.docking .eyes { top: 18%; }
+.pet-wrap.docking .pet-label { opacity: calc(1 - 2 * var(--dock, 0)); }
+
+.pet-label {
+    margin-top: 5px;
+    background: rgba(22, 22, 26, 0.78);
+    color: #f5f4ef;
+    padding: 1.5px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 14px;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.2);
+  }
+.pet-wrap:hover .pet-label {
+    opacity: 0.92;
+    transform: translateY(0);
+  }
+body.theme-chalk .pet-label {
+    background: rgba(245, 244, 239, 0.86);
+    color: #16161a;
+    box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.16);
+  }
+:root {
+    --spring: linear(0, 0.031, 0.107, 0.208, 0.319, 0.429, 0.534, 0.628, 0.71, 0.78, 0.838, 0.884, 0.921, 0.949, 0.97, 0.985, 0.996, 1.003, 1.008, 1.01, 1);
+  }
+[hidden] { display: none !important; }
+.stale-banner { flex-shrink: 0; font-size: 11px; line-height: 1.4; padding: 6px 9px; border-radius: 10px;
+    background: var(--panel-soft); border: 1px solid var(--panel-border); color: var(--panel-fg); }
+.stale-banner[hidden] { display: none; }
+.bubble button, .bubble input, .bubble select, .bubble summary, .bubble [role="option"], .bubble .switch {
+    min-width: 24px; min-height: 24px;
+  }
+.bubble summary { cursor: pointer; font-size: 11px; }
+.block-sub { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.bubble { max-width: 100%; }
+
+.toast {
+    background: var(--panel-soft); border: 1px solid var(--panel-border); border-radius: 14px;
+    padding: 9px 11px; display: flex; flex-direction: column; gap: 7px; position: relative; overflow: hidden;
+  }
+.toast-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 800; }
+
+kbd { font: inherit; font-weight: 800; background: var(--panel-soft); border-radius: 4px; padding: 0 4px; }
+.tab-pane.active {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin;
+    scrollbar-gutter: stable; padding: 0 3px 12px 0; margin-right: -4px;
+    
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
+            mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
+  }
+.tab-pane.active > * { flex-shrink: 0; }
+.streak { position: absolute; height: 2.5px; width: 12px; border-radius: 2px; background: var(--muted); opacity: 0; pointer-events: none; }
+.pet-wrap[data-motion] .pet-label { opacity: 0; }
+.pet-label { transition: opacity 0.18s ease; }
+.pet-wrap[data-motion] .pill { animation: none !important; }
+.pet-wrap[data-motion] .ro-bot { animation: none !important; transform: none !important; }
+.pet-wrap[data-eyes] .eye { transition: none !important; box-sizing: border-box; }
+.pet-wrap[data-eyes="squint"] .eye, .pet-wrap[data-eyes="happy"] .eye, .pet-wrap[data-eyes="swirl"] .eye {
+    background: transparent !important; border: 0 solid var(--bot-eye); border-radius: 0;
+  }
+.pet-wrap[data-eyes="squint"] .eye { width: calc(2.7 * var(--u)) !important; height: calc(2.7 * var(--u)) !important; }
+.pet-wrap[data-eyes="squint"] .eye-l { border-top-width: 3px; border-right-width: 3px; transform: rotate(45deg) scale(0.8) !important; border-top-right-radius: 1px; }
+.pet-wrap[data-eyes="squint"] .eye-r { border-top-width: 3px; border-left-width: 3px; transform: rotate(-45deg) scale(0.8) !important; border-top-left-radius: 1px; }
+.pet-wrap[data-eyes="happy"] .eye {
+    width: calc(3 * var(--u)) !important; height: calc(2 * var(--u)) !important;
+    border-width: 2.5px 2.5px 0 2.5px; border-radius: 999px 999px 0 0; transform: none !important;
+  }
+.pet-wrap[data-eyes="dash"] .eye { width: calc(2.4 * var(--u)) !important; height: 2.5px !important; border-radius: 2px; transform: none !important; }
+.pet-wrap[data-eyes="big"] .eye { transform: scale(1.22) !important; }
+.pet-wrap[data-eyes="swirl"] .eye {
+    width: calc(3 * var(--u)) !important; height: calc(3 * var(--u)) !important; border-width: 2.5px; border-radius: 50%;
+    animation: eyeSpin 0.6s linear infinite;
+  }
+.pet-wrap[data-eyes="swirl"] .eye-l { border-right-color: transparent; }
+.pet-wrap[data-eyes="swirl"] .eye-r { border-left-color: transparent; }
+@keyframes eyeSpin { to { rotate: 360deg; } }
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+@media (prefers-reduced-motion: reduce) {
+*, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+}
+.preview-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.preview-chips .opt-btn { flex: 0 0 auto; width: auto; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+</style>
+</head>
+<body class="material-clay">
+<main id="stage" class="stage">
+  <h1 class="sr-only">ro.bot pet</h1>
+    <div id="bubble" class="bubble hidden">
+    <div class="bubble-tail" aria-hidden="true"></div>
+
+        <div id="bubbleTop" class="bubble-top" title="Drag to move">
+      <div class="top-left">
+        <span class="brand-tag">ro</span>
+      </div>
+      <div class="top-right">
+        <button id="moreBtn" class="close-x-btn" style="display:none;" title="Menu (bring to desktop, send to menu bar)">⋯</button>
+        <button id="closeBtn" class="close-x-btn" title="Close panel (Esc)">✕</button>
+      </div>
+    </div>
+    <div id="staleBanner" class="stale-banner" role="status" hidden></div>
+
+    <div id="paneSettings" class="tab-pane active">
+      <div class="settings-stream">
+
+                <div class="setting-block">
+          <div class="block-title">Material</div>
+          <div class="options-row">
+            <button class="opt-btn mat-opt" data-mat="clay">Clay</button>
+            <button class="opt-btn mat-opt" data-mat="glass">Glass</button>
+          </div>
+        </div>
+
+                <div class="setting-block">
+          <div class="block-title">Body color</div>
+          <div class="options-row" style="flex-wrap:wrap;">
+            <button class="opt-btn look-opt" data-key="glass" data-value="auto" title="Follows the macOS appearance (light/dark)">System</button>
+            <button class="opt-btn look-opt" data-key="glass" data-value="light">Light</button>
+            <button class="opt-btn look-opt" data-key="glass" data-value="dark">Dark</button>
+            <button class="opt-btn look-opt" data-key="tint" data-value="sage">Sage</button>
+            <button class="opt-btn look-opt" data-key="tint" data-value="sky">Sky</button>
+            <button class="opt-btn look-opt" data-key="tint" data-value="lilac">Lilac</button>
+          </div>
+        </div>
+
+                <div class="setting-block">
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span class="toggle-name">Wander</span>
+              <span class="toggle-sub">Slowly strolls along the bottom of the screen</span>
+            </div>
+            <label class="switch">
+              <input id="wanderToggle" type="checkbox" aria-label="Wander">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+                <div class="setting-block">
+          <div class="block-title">Expression</div>
+          <div id="moodChips" class="preview-chips"></div>
+        </div>
+        <div class="setting-block">
+          <div class="block-title">Motion</div>
+          <div id="actionChips" class="preview-chips"></div>
+        </div>
+      </div>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;"></div>
+  </div>
+
+    <div id="petWrap" class="pet-wrap mood-idle" title="Click: open panel · Right-click: menu · Drag: move (drag up to send to the menu bar)">
+    <div id="roBot" class="ro-bot">
+      <span id="streak" class="streak" aria-hidden="true"></span>
+      <div id="layerHead" class="pill pill-head">
+        <i class="g-env" aria-hidden="true"></i>
+        <div id="eyesWrap" class="eyes">
+          <div id="eyeL" class="eye eye-l"></div>
+          <div id="eyeR" class="eye eye-r"></div>
+          <svg class="resolved-arch" viewBox="0 0 24 10" aria-hidden="true">
+            <path d="M 2.5 7.5 C 4.5 2.5, 8.0 2.5, 10.0 7.5 M 14.0 7.5 C 16.0 2.8, 19.5 2.8, 21.5 7.5" />
+          </svg>
+        </div>
+      </div>
+      <div id="layerBody" class="pill pill-body"><i class="g-env" aria-hidden="true"></i></div>
+      <div id="layerBase" class="pill pill-base"><i class="g-env" aria-hidden="true"></i></div>
+    </div>
+    <div id="petCaption" class="pet-label">Idle</div>
+  </div>
+</main>
+
+<script>
+const TOKEN = "__RO_TOKEN__";
+const MOOD_META = {
+  idle:      { label: "Idle",      caption: "Ro, as usual." },
+  recording: { label: "Recording", caption: "Looks down." },
+  focus:     { label: "Focus",     caption: "Sees only one thing." },
+  anxious:   { label: "Attention", caption: "Eyes shrink, layers slip." },
+  discovery: { label: "Discovery", caption: "Eyes widen, head lifts." },
+  resolved:  { label: "Resolved",  caption: "Smiles." },
+};
+const MOOD_ORDER = ["idle", "recording", "focus", "anxious", "discovery", "resolved"];
+
+const ACTION_META = {
+  press:       { label: "Press",       desc: "80 ms flatten, then spring · glad eyes (click/tap)" },
+  breathe:     { label: "Breathe",     desc: "Three layers breathe out of phase (3 s loop)" },
+  look_around: { label: "Look around", desc: "Eyes lead the glance" },
+  walk:        { label: "Walk",        desc: "Base, body, head step in sequence" },
+  thinking:    { label: "Think",       desc: "Head tilts, off-beat pulse" },
+  alert:       { label: "Startle",     desc: "Sudden hop, eyes widen" },
+  drowsy:      { label: "Drowsy",      desc: "Head sinks, squinting, slow breaths" },
+  gaze:        { label: "Gaze",        desc: "Eyes follow the cursor" },
+  pet:         { label: "Pet",         desc: "Squishes and smiles (mouse hover)" },
+  drag:        { label: "Drag",        desc: "Stretches tall, base sags" },
+  shake:       { label: "Shake",       desc: "Layers sway side to side (quick shake)" },
+  drop:        { label: "Land",        desc: "Landing squash and spring" },
+  success:     { label: "Success",     desc: "Happy jump, smiling eyes, 26u expand" },
+  failure:     { label: "Failure",     desc: "Layers slip, tremble, tiny eyes" },
+};
+const ALL_ACTIONS = Object.keys(ACTION_META);
+
+const stage = document.getElementById("stage");
+const bubble = document.getElementById("bubble");
+const bubbleTop = document.getElementById("bubbleTop");
+const petWrap = document.getElementById("petWrap");
+const petCaption = document.getElementById("petCaption");
+const closeBtn = document.getElementById("closeBtn");
+const staleBanner = document.getElementById("staleBanner");
+const toastEl = document.getElementById("toast");
+const wanderToggle = document.getElementById("wanderToggle");
+const layerHead = document.getElementById("layerHead");
+const layerBody = document.getElementById("layerBody");
+const layerBase = document.getElementById("layerBase");
+const eyesWrap = document.getElementById("eyesWrap");
+const eyeL = document.getElementById("eyeL");
+const eyeR = document.getElementById("eyeR");
+let currentMood = "idle";
+let currentAction = null;
+let actionTimer = null;
+let previewLockUntil = 0;
+const INITIAL_PREFS = __RO_PREFS__;
+const TINT_PRESETS = __RO_TINT_PRESETS__;
+const GLASS_CHOICES = ["auto", "light", "dark"];
+let glassMode = GLASS_CHOICES.includes(INITIAL_PREFS.glass) ? INITIAL_PREFS.glass : "auto";
+let tintMode = Object.keys(TINT_PRESETS).includes(INITIAL_PREFS.tint) ? INITIAL_PREFS.tint : "none";
+let materialMode = ["clay", "glass"].includes(INITIAL_PREFS.material) ? INITIAL_PREFS.material : "clay";
+let themeMode = ["ink", "chalk", "auto"].includes(INITIAL_PREFS.theme) ? INITIAL_PREFS.theme : "auto";
+let systemDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+let ambient = null;
+const MATERIAL_CHOICES = ["clay", "glass"];
+const THEME_CHOICES = ["ink", "chalk", "auto"];
+let dockCaption = null;
+function updateMaterialUI() {
+  for (const m of MATERIAL_CHOICES) {
+    document.body.classList.toggle(`material-${m}`, materialMode === m);
+  }
+  document.querySelectorAll(".mat-opt").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mat === materialMode);
+    btn.setAttribute("aria-pressed", String(btn.dataset.mat === materialMode));
+  });
+  updateLookUI();
+  updatePetCaption();
+}
+
+function updatePetCaption() {
+  const moodMeta = MOOD_META[currentMood] || MOOD_META.idle;
+  if (dockCaption !== null) return;
+  petCaption.textContent = currentAction ? (ACTION_META[currentAction]?.label || currentAction) : moodMeta.label;
+}
+
+function updateThemeUI() {
+  const isChalk = themeMode === "chalk" || (themeMode === "auto" && systemDark);
+  document.body.classList.toggle("theme-chalk", isChalk);
+  updateLookUI();
+}
+
+function glassIsDark() {
+  return glassMode === "auto" ? systemDark : glassMode === "dark";
+}
+
+function relativeLuminance(hex) {
+  const rgb = hex.trim().slice(1).match(/../g).map(c => {
+    const s = parseInt(c, 16) / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+}
+
+function updateLookUI() {
+  document.querySelectorAll(".look-opt").forEach(btn => {
+    const on = btn.dataset.key === "glass" ? tintMode === "none" && btn.dataset.value === glassMode : btn.dataset.value === tintMode;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  });
+  document.body.classList.toggle("glass-dark", glassIsDark());
+  const bot = document.getElementById("roBot");
+  bot.style.removeProperty("--bot-fill");
+  bot.style.removeProperty("--bot-eye");
+  if (materialMode === "clay" && tintMode !== "none") {
+    const color = TINT_PRESETS[tintMode];
+    const css = getComputedStyle(bot);
+    const ink = css.getPropertyValue("--ink"), chalk = css.getPropertyValue("--chalk");
+    const lum = relativeLuminance(color);
+    const contrast = c => (Math.max(lum, relativeLuminance(c)) + 0.05) / (Math.min(lum, relativeLuminance(c)) + 0.05);
+    bot.style.setProperty("--bot-fill", color);
+    bot.style.setProperty("--bot-eye", contrast(ink) >= contrast(chalk) ? ink : chalk);
+  }
+  notifyHost({ type: "look", theme: themeMode, glass: glassMode, tint: tintMode });
+  kickNativeGlass();
+}
+
+window.setLookPref = function(key, value) {
+  if (key === "theme" && THEME_CHOICES.includes(value)) { themeMode = value; updateThemeUI(); }
+  else if (key === "glass" && GLASS_CHOICES.includes(value)) glassMode = value;
+  else if (key === "tint" && (value === "none" || Object.keys(TINT_PRESETS).includes(value))) tintMode = value;
+  else return;
+  updateLookUI();
+  return savePrefs({ [key]: value });
+};
+
+const savedPrefs = { material: materialMode, theme: themeMode, glass: glassMode, tint: tintMode };
+async function savePrefs(changes) {
+  let r = null;
+  try { r = await apiPost("/api/prefs", changes); } catch (err) {}
+  if (r && r.ok) { Object.assign(savedPrefs, changes); return; }
+  if ("material" in changes) { materialMode = savedPrefs.material; updateMaterialUI(); }
+  if ("theme" in changes) { themeMode = savedPrefs.theme; updateThemeUI(); }
+  if ("glass" in changes) glassMode = savedPrefs.glass;
+  if ("tint" in changes) tintMode = savedPrefs.tint;
+  updateLookUI();
+  const why = r ? (r.error || r.output || "") : "Could not reach the server";
+  showToast([h("div", { class: "toast-head", text: "Could not save the setting, so it was reverted. Please try again." }),
+    why ? h("div", { class: "block-sub", text: why }) : null], 5000);
+}
+
+window.setThemeModeFromHost = function(mode) {
+  if (!THEME_CHOICES.includes(mode)) return;
+  themeMode = mode;
+  updateThemeUI();
+  savePrefs({ theme: mode });
+};
+
+window.setMaterialFromHost = function(mode) {
+  if (MATERIAL_CHOICES.includes(mode)) {
+    materialMode = mode;
+    updateMaterialUI();
+    savePrefs({ material: mode });
+  }
+};
+
+window.setWanderState = function(enabled) {
+  if (wanderToggle) {
+    wanderToggle.checked = !!enabled;
+  }
+};
+
+if (window.matchMedia) {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    systemDark = e.matches;
+    updateThemeUI();
+  });
+}
+updateThemeUI();
+updateMaterialUI();
+
+function notifyHost(payload) {
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.roHost) {
+    window.webkit.messageHandlers.roHost.postMessage(payload);
+  }
+}
+
+let bubbleOpenedAt = 0;
+function setBubbleOpen(open) {
+  if (open && bubble.classList.contains("hidden")) bubbleOpenedAt = performance.now();
+  bubble.classList.toggle("hidden", !open);
+  if (open && !isNativeHost) fitStage();
+  notifyHost({ type: "bubble", open: !!open });
+  if (window._poll !== undefined) setPollRate(open);
+}
+
+window.addEventListener("blur", () => {
+  if (bubble.classList.contains("hidden") || performance.now() - bubbleOpenedAt < 300 ||
+      false) return;
+  setBubbleOpen(false);
+});
+
+window.toggleBubbleFromHost = function(forceOpen) {
+  const isHidden = bubble.classList.contains("hidden");
+  setBubbleOpen(forceOpen !== undefined ? forceOpen : isHidden);
+};
+
+window.setBubblePlacement = function(isTop, isLeft) {
+  document.body.classList.toggle("place-top", !!isTop);
+  document.body.classList.toggle("place-left", !!isLeft);
+};
+
+function setMoodClass(mood) {
+  const before = petWrap.className;
+  for (const m of MOOD_ORDER) petWrap.classList.toggle(`mood-${m}`, m === mood);
+  if (petWrap.className !== before) kickNativeGlass();
+}
+
+window.setMoodPreview = function(mood, durationMs) {
+  const meta = MOOD_META[mood];
+  if (!meta) return;
+  previewLockUntil = Date.now() + (durationMs || 8000);
+  currentMood = mood;
+  eyesWrap.style.transform = "";
+  setMoodClass(mood);
+  updateMaterialUI();
+};
+
+function cycleMoodPreview() {
+  const idx = (MOOD_ORDER.indexOf(currentMood) + 1) % MOOD_ORDER.length;
+  window.setMoodPreview(MOOD_ORDER[idx], 8000);
+}
+
+petWrap.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  if (isNativeHost) notifyHost({ type: "menu" });
+  else cycleMoodPreview();
+});
+
+stage.addEventListener("mousedown", (e) => {
+  if (e.target === stage && !bubble.classList.contains("hidden")) {
+    setBubbleOpen(false);
+  }
+});
+
+const moreBtn = document.getElementById("moreBtn");
+if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.roHost) moreBtn.style.display = "";
+moreBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  notifyHost({ type: "menu" });
+});
+
+closeBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setBubbleOpen(false);
+});
+
+document.querySelectorAll(".mat-opt").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    materialMode = btn.dataset.mat;
+    updateMaterialUI();
+    savePrefs({ material: materialMode });
+  });
+});
+
+document.querySelectorAll(".look-opt").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    if (btn.dataset.key === "glass" && tintMode !== "none") window.setLookPref("tint", "none");
+    window.setLookPref(btn.dataset.key, btn.dataset.value);
+  });
+});
+
+wanderToggle.addEventListener("change", (e) => {
+  notifyHost({ type: "toggleWander", enabled: wanderToggle.checked });
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  setBubbleOpen(false);
+});
+
+const MOTION_DEMOS = ["press", "drag", "shake", "drop"];
+
+window.triggerAction = function(name, durationMs) {
+  kickNativeGlass();
+  if (actionTimer) {
+    clearTimeout(actionTimer);
+    actionTimer = null;
+  }
+  eyesWrap.style.transform = "";
+  layerHead.style.transform = "";
+
+  for (const act of ALL_ACTIONS) {
+    petWrap.classList.remove(`action-${act.replace(/_/g, "-")}`);
+  }
+  currentAction = name;
+
+  if (!name) {
+    currentAction = null;
+    const meta = MOOD_META[currentMood] || MOOD_META.idle;
+    petCaption.textContent = meta.label;
+    return { ok: true, cleared: true };
+  }
+
+  if (MOTION_DEMOS.includes(name)) {
+    const meta = ACTION_META[name];
+    if (meta) petCaption.textContent = meta.label;
+    if (!RoMotion.busy()) RoMotion.demo(name);
+    return { ok: true, action: name, duration: 0 };
+  }
+  const cls = `action-${name.replace(/_/g, "-")}`;
+  petWrap.classList.add(cls);
+
+  const meta = ACTION_META[name];
+  if (meta) petCaption.textContent = meta.label;
+
+  const dur = (durationMs !== undefined) ? durationMs : 4500;
+  if (dur > 0) {
+    actionTimer = setTimeout(() => {
+      window.triggerAction(null);
+    }, dur);
+  }
+  return { ok: true, action: name, duration: dur };
+};
+
+window.onHostDragStart = function(fromPet) {};   window.onHostDragMove = function(x, y) { RoMotion.move(x, y, performance.now(), true); };
+window.onHostDragShake = function() {};          window.onHostDragEnd = function(moved, fallPx) { RoMotion.up(performance.now(), !!moved, fallPx || 0); };
+window.onHostDockProgress = function(p) {
+  petWrap.style.setProperty("--dock", p);
+  petWrap.classList.toggle("docking", p > 0);
+  if (p > 0 && dockCaption === null) {
+    dockCaption = petCaption.textContent;
+    petCaption.textContent = "Release to menu bar";
+  } else if (p === 0 && dockCaption !== null) {
+    petCaption.textContent = dockCaption;
+    dockCaption = null;
+  }
+};
+
+window.onHostDocked = function() {
+  window.onHostDockProgress(0);
+  RoMotion.reset();
+  RoMotion.clearStyles();
+  window.triggerAction(null);
+};
+
+let isPetHover = false;
+petWrap.addEventListener("mouseenter", () => {
+  if (RoMotion.busy() || currentAction === "drag" || currentAction === "shake" || currentAction === "drop") return;
+  if (isDrowsy) { wakeUpFromSleep(); return; }
+  isPetHover = true;
+  window.triggerAction("pet", 0);
+});
+
+petWrap.addEventListener("mouseleave", () => {
+  if (isPetHover) {
+    isPetHover = false;
+    if (currentAction === "pet") window.triggerAction(null);
+  }
+});
+
+window.addEventListener("mousemove", (e) => {
+  recordActivity();
+  if (currentMood === "resolved" || currentMood === "recording" || currentMood === "focus") {
+    eyesWrap.style.transform = "";
+    layerHead.style.transform = "";
+    kickNativeGlass();
+    return;
+  }
+  if (isPetHover || currentAction || RoMotion.busy()) return;
+  const rect = layerHead.getBoundingClientRect();
+  const cx = rect.left + rect.width * 0.68;
+  const cy = rect.top + rect.height * 0.5;
+  const dx = Math.max(-3.0, Math.min(3.0, (e.clientX - cx) / 32));
+  const dy = Math.max(-1.8, Math.min(2.0, (e.clientY - cy) / 32));
+  eyesWrap.style.transform = `translate(${dx}px, calc(-50% + ${dy}px))`;
+  layerHead.style.transform = `translate(${dx * 0.28}px, ${dy * 0.28}px)`;
+  kickNativeGlass();
+});
+
+setInterval(() => {
+  if (currentMood === "resolved" || currentMood === "focus" || currentAction === "pet" || currentAction === "drowsy") return;
+  eyeL.classList.add("blink");
+  eyeR.classList.add("blink");
+  setTimeout(() => {
+    eyeL.classList.remove("blink");
+    eyeR.classList.remove("blink");
+  }, 130);
+}, 3800);
+
+let lastUserActivity = Date.now();
+let isDrowsy = false;
+function recordActivity() {
+  lastUserActivity = Date.now();
+  if (isDrowsy) wakeUpFromSleep();
+}
+window.addEventListener("keydown", recordActivity);
+window.addEventListener("mousedown", recordActivity);
+
+function wakeUpFromSleep() {
+  isDrowsy = false;
+  window.triggerAction("alert", 2000);
+}
+
+setInterval(() => {
+  if (isPetHover || currentAction || currentMood !== "idle") return;
+  if (!bubble.classList.contains("hidden")) return;
+  if (!isDrowsy && (Date.now() - lastUserActivity > 75000)) {
+    isDrowsy = true;
+    window.triggerAction("drowsy", 0);
+  }
+}, 4000);
+
+setInterval(() => {
+  if (isDrowsy || isPetHover || currentAction || RoMotion.busy() || currentMood !== "idle") return;
+  if (Math.random() < 0.40) {
+    window.triggerAction("look_around", 3200);
+  }
+}, 16000);
+
+const isNativeHost = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.roHost);
+var nativeGlassKind = "";
+var nativeGlassSent;
+var nativeGlassFrame;
+var nativeGlassTimer;
+var nativeGlassActiveAt;
+var nativeGlassPoseAt = -Infinity;
+window.setNativeGlass = function(kind) {
+  nativeGlassKind = (kind === "liquid" || kind === "blur") ? kind : "";
+  nativeGlassSent = "";
+  kickNativeGlass();
+};
+function kickNativeGlass() {
+  clearTimeout(nativeGlassTimer);
+  nativeGlassTimer = null;
+  nativeGlassActiveAt = performance.now();
+  nativeGlassPoseAt = -Infinity;
+  if (!nativeGlassKind || materialMode !== "glass") {
+    cancelAnimationFrame(nativeGlassFrame);
+    syncNativeGlass();
+  } else if (nativeGlassFrame == null) {
+    nativeGlassFrame = requestAnimationFrame(syncNativeGlass);
+  }
+}
+for (const event of ["animationstart", "transitionrun"]) {
+  document.addEventListener(event, e => { if (petWrap.contains(e.target)) kickNativeGlass(); }, true);
+}
+window.addEventListener("resize", kickNativeGlass);
+function glassPose(el, moving) {
+  let rot = 0, sx = 1, sy = 1, op = 1;
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    if (cs.transform && cs.transform !== "none") {
+      const m = new DOMMatrixReadOnly(cs.transform);
+      rot += Math.atan2(m.b, m.a) * 180 / Math.PI;
+      sx *= Math.hypot(m.a, m.b);
+      sy *= Math.hypot(m.c, m.d);
+    }
+    if (cs.rotate && cs.rotate !== "none") rot += parseFloat(cs.rotate) || 0;
+    if (cs.scale && cs.scale !== "none") {
+      const [a, b = a] = cs.scale.split(" ").map(parseFloat);
+      sx *= a || 1; sy *= b || 1;
+    }
+    op *= parseFloat(cs.opacity);
+  }
+  const r = el.getBoundingClientRect();
+  const w = el.offsetWidth * sx, h = el.offsetHeight * sy;
+  const q = (v, k) => Math.round(v * k) / k;
+  const k = moving ? 4 : 2;
+  return [q(r.left + r.width / 2 - w / 2, k), q(r.top + r.height / 2 - h / 2, k), q(w, k), q(h, k), q(rot, 10), q(op, 50)];
+}
+function setNativeGlassClass(on) {
+  for (const k of ["liquid", "blur"]) document.body.classList.toggle(`native-glass-${k}`, on && nativeGlassKind === k);
+}
+function syncNativeGlass(now = performance.now()) {
+  nativeGlassFrame = null;
+  nativeGlassTimer = null;
+  if (!nativeGlassKind || materialMode !== "glass") {
+    setNativeGlassClass(false);
+    if (nativeGlassSent !== "off") { nativeGlassSent = "off"; notifyHost({ type: "glass", on: false }); }
+    return;
+  }
+  const moving = typeof RoMotion !== "undefined" && RoMotion.busy();
+
+  if (!moving && now - nativeGlassPoseAt < 100 && now - nativeGlassActiveAt < 500) {
+    nativeGlassTimer = setTimeout(syncNativeGlass, 100 - (now - nativeGlassPoseAt));
+    return;
+  }
+  nativeGlassPoseAt = now;
+  let rects = [layerHead, layerBody, layerBase].map(el => glassPose(el, moving));
+  if (!rects.every(r => r[2] >= 1 && r[3] >= 1 && r[5] > 0.02)) rects = null;
+  setNativeGlassClass(!!rects);
+  const dark = glassIsDark();
+  const tint = TINT_PRESETS[tintMode];
+  const key = rects ? JSON.stringify(rects) + dark + (tint || "") : "off";
+  const changed = key !== nativeGlassSent;
+  if (changed) {
+    nativeGlassSent = key;
+    notifyHost(rects ? { type: "glass", on: true, rects, dark, ...(tint ? { tint } : {}) } : { type: "glass", on: false });
+  }
+  const animating = document.getAnimations().some(a => a.playState === "running" && petWrap.contains(a.effect?.target));
+  if (moving || animating || changed) nativeGlassActiveAt = now;
+  if (moving) {
+    nativeGlassFrame = requestAnimationFrame(syncNativeGlass);
+  } else if (now - nativeGlassActiveAt < 500) {
+    nativeGlassTimer = setTimeout(syncNativeGlass, 100);
+  } else {
+    nativeGlassTimer = setTimeout(syncNativeGlass, 1000);
+  }
+}
+let webDragStart = null;
+let webDidDrag = false;
+let webLastX = 0;
+let webLastDxSign = 0;
+let webShakeCount = 0;
+let webLastReversal = 0;
+
+let stageX = 0;
+let stageY = 0;
+function moveStageBy(dx, dy) {
+  const prev = [stageX, stageY];
+  stageX += dx;
+  stageY += dy;
+  stage.style.transform = `translate(${stageX}px, ${stageY}px)`;
+  const rects = [petWrap, bubble].filter((el) => !el.classList.contains("hidden")).map((el) => el.getBoundingClientRect());
+  if (rects.some((r) => r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight)) {
+    [stageX, stageY] = prev;
+    stage.style.transform = `translate(${stageX}px, ${stageY}px)`;
+  }
+}
+
+function fitStage() {
+  const rects = [petWrap, bubble].filter((el) => !el.classList.contains("hidden")).map((el) => el.getBoundingClientRect());
+  if (!rects.length) return;
+  const left = Math.min(...rects.map(r => r.left)), right = Math.max(...rects.map(r => r.right));
+  const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
+  let dx = 0, dy = 0;
+  if (left < 0) dx = -left; else if (right > window.innerWidth) dx = Math.max(-left, window.innerWidth - right);
+  if (top < 0) dy = -top; else if (bottom > window.innerHeight) dy = Math.max(-top, window.innerHeight - bottom);
+  if (dx || dy) {
+    stageX += dx;
+    stageY += dy;
+    stage.style.transform = `translate(${stageX}px, ${stageY}px)`;
+  }
+}
+
+window.addEventListener("resize", () => { if (!isNativeHost) fitStage(); });
+
+function beginDrag(e, fromPet) {
+  if (e.button !== 0) return;
+  if (e.target.closest("button") || e.target.closest("input")) return;
+  if (fromPet) {
+    if (currentAction === "pet") window.triggerAction(null);
+    Lid.reset();
+    RoMotion.down(performance.now());
+  }
+  if (isNativeHost) {
+    notifyHost({ type: "dragStart", fromPet: !!fromPet });
+    return;
+  }
+  webDragStart = { x: e.screenX, y: e.screenY };
+  webLastX = e.screenX;
+  webDidDrag = false;
+  webShakeCount = 0;
+}
+
+petWrap.addEventListener("mousedown", (e) => beginDrag(e, true));
+bubbleTop.addEventListener("mousedown", (e) => beginDrag(e, false));
+
+window.addEventListener("mousemove", (e) => {
+  if (isNativeHost || !webDragStart) return;
+  RoMotion.move(e.screenX, e.screenY, performance.now());
+  const dx = e.screenX - webDragStart.x;
+  const dy = e.screenY - webDragStart.y;
+  if (Math.abs(dx) > 7 || Math.abs(dy) > 7) {
+    webDidDrag = true;
+    webDragStart = { x: e.screenX, y: e.screenY };
+    if (isNativeHost) notifyHost({ type: "moveBy", dx, dy });
+    else moveStageBy(dx, dy);
+  }
+});
+
+window.addEventListener("mouseup", () => {
+  if (!isNativeHost && webDragStart) RoMotion.up(performance.now(), webDidDrag, 0);
+  webDragStart = null;
+});
+
+petWrap.addEventListener("click", () => {
+  if (isNativeHost || webDidDrag || !RoMotion.consumeClick()) return;
+  if (isDrowsy) wakeUpFromSleep();
+  setBubbleOpen(bubble.classList.contains("hidden"));
+});
+
+window.onPetClickFromHost = function() {
+  if (!RoMotion.consumeClick()) return;
+  if (isDrowsy) wakeUpFromSleep();
+  setBubbleOpen(bubble.classList.contains("hidden"));
+};
+
+async function apiPost(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Ro-Token": TOKEN },
+    body: JSON.stringify(body || {}),
+  });
+  if (res.status === 401 || res.status === 403) {
+    markStale("Please reopen the pet (the server may have restarted).");
+    throw new Error("auth");
+  }
+  let data;
+  try { data = await res.json(); } catch (e) { data = { ok: false, error: `Could not read the response (${res.status})` }; }
+  if (!res.ok && data.ok === undefined) data.ok = false;
+  return data;
+}
+
+let latestState = null;
+function applyState(st) {
+  latestState = st;
+  const locked = Date.now() < previewLockUntil;
+  if (!locked) {
+    currentMood = st.mood;
+    if (currentMood === "recording" || currentMood === "resolved" || currentMood === "focus") {
+      eyesWrap.style.transform = "";
+    }
+    setMoodClass(st.mood);
+
+    updatePetCaption();
+
+    if (RoMotion.busy()) {
+
+    } else if (st.action && st.action !== currentAction) {
+      window.triggerAction(st.action, 4500);
+    } else if (!currentAction) {
+      if (st.mood === "resolved") {
+        window.triggerAction("success", 4000);
+      } else if (st.mood === "anxious") {
+        window.triggerAction("failure", 0);
+      }
+    }
+  }
+
+  applyAmbient(st);
+}
+
+let pollGeneration = 0;
+let pollController = null;
+let stateVersion = null;
+function setPollRate(fast) {
+  return refreshState(!fast);
+}
+
+let lastStateOk = 0;
+function markStale(why) {
+  const at = lastStateOk ? new Date(lastStateOk).toTimeString().slice(0, 5) : "--:--";
+  staleBanner.textContent = `Update failed · showing data as of ${at}. ${why || "Retrying shortly."}`;
+  staleBanner.hidden = false;
+}
+async function refreshState(wait = false) {
+  clearTimeout(window._poll);
+  window._poll = null;
+  const generation = ++pollGeneration;
+  if (pollController) pollController.abort();
+  pollController = new AbortController();
+  let ok = false;
+  try {
+    const query = wait && stateVersion ? `?wait=${encodeURIComponent(stateVersion)}` : "";
+    const res = await fetch("/api/state" + query, {
+      headers: { "X-Ro-Token": TOKEN }, signal: pollController.signal
+    });
+    if (generation !== pollGeneration) return;
+    if (!res.ok) {
+      markStale(res.status === 403 ? "Please reopen the pet (the server may have restarted)." : `Server error ${res.status}`);
+      return;
+    }
+    const st = await res.json();
+    if (generation !== pollGeneration) return;
+    stateVersion = st.version;
+    lastStateOk = Date.now();
+    staleBanner.hidden = true;
+    applyState(st);
+    ok = true;
+  } catch (err) {
+    if (generation !== pollGeneration || err.name === "AbortError") return;
+    markStale("Could not reach the local server.");
+  } finally {
+    if (generation === pollGeneration) {
+      const closed = bubble.classList.contains("hidden");
+      window._poll = setTimeout(() => refreshState(closed), ok ? (closed ? 0 : 450) : 2000);
+    }
+  }
+}
+
+const RoMotion = (() => {
+  const SPEC = {
+    press: { ms: 80, sx: 1.08, sy: 0.86, rel: [600, 15], delay: [60, 30, 0], happyAfter: 240, happyMs: 600, doneMs: 1000 },
+
+    grab: { holdMs: 300, moveStart: 8, hang: [5, 17], hangSpring: [400, 24], follow: [1.0, 0.35, 0.2], damping: 0.65, tilt: 0.25, tiltMax: 4,
+            maxLag: 12, wobbleDeg: 1.4, wobbleHz: 1.5 },
+    shake: { reversals: 3, windowMs: 1000, speed: 1200, spring: [180, 8], maxRot: 4, dizzyAfter: Infinity, dizzyMs: 0, landDizzyMs: 1200,
+             spinMs: 600, endGap: 450, calmMs: 900, stopSpeed: 150, stopMs: 100, calmDamping: 12, keepRatio: 0.5, slowWindow: 120 },
+    drop: { g: 2400, maxFallMs: 280, stretch: [0.94, 1.08], landMs: 90, land: [1.12, 0.82], bounce: 0.2,
+            bounceSpring: [500, 18], stack: [0, 60, 120], restMs: 360, fadeMs: 150 },
+    gap: 1,
+  };
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const powerOut = (t, p = 2) => 1 - Math.pow(1 - clamp(t, 0, 1), p);
+
+    function springStep(k, c, sec) {
+    if (sec <= 0) return 0;
+    const w0 = Math.sqrt(k), z = c / (2 * w0);
+    if (z < 1) {
+      const wd = w0 * Math.sqrt(1 - z * z);
+      return 1 - Math.exp(-z * w0 * sec) * (Math.cos(wd * sec) + (z * w0 / wd) * Math.sin(wd * sec));
+    }
+    if (z === 1) return 1 - Math.exp(-w0 * sec) * (1 + w0 * sec);
+    const s = Math.sqrt(z * z - 1), r1 = -w0 * (z - s), r2 = -w0 * (z + s);
+    return 1 - (r2 * Math.exp(r1 * sec) - r1 * Math.exp(r2 * sec)) / (r2 - r1);
+  }
+    const [BK, BC] = SPEC.drop.bounceSpring;
+  const BW0 = Math.sqrt(BK), BZ = BC / (2 * BW0), BWD = BW0 * Math.sqrt(1 - BZ * BZ);
+  const BHALF = Math.PI / BWD;
+  let BPEAK = 0;
+  for (let i = 0; i <= 200; i++) { const s = i / 200 * BHALF; BPEAK = Math.max(BPEAK, Math.exp(-BZ * BW0 * s) * Math.sin(BWD * s)); }
+  const bounce1 = (sec) => (sec <= 0 || sec >= BHALF) ? 0 : Math.exp(-BZ * BW0 * sec) * Math.sin(BWD * sec) / BPEAK;
+
+  let S;
+  let dims = null;
+  let manual = false;
+  let raf = null;
+  const now = () => performance.now();
+  const reducedNow = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  const mkPos = (x, y) => ({ x, y, vx: 0, vy: 0 });
+  function reset() {
+    S = { phase: "idle", downAt: null, upAt: null, grabAt: null, grabbed: false, tap: false,
+          anchor: null, head: { x: 0, y: 0 }, pos: [mkPos(0, 0), mkPos(0, 0), mkPos(0, 0)],
+          vx: 0, vy: 0, lastMoveT: null, peak: 0, sign: 0, revs: [], tau: 80,
+          shakeActive: false, shakeStart: null, shakeLast: -1e9, shakeEnd: null, dizzyFrom: 0, dizzyUntil: 0, sg: 0, slowSince: null,
+          hist: [], osc: [{ th: 0, w: 0 }, { th: 0, w: 0 }, { th: 0, w: 0 }], simT: 0,
+          dropAt: null, fall: 0, tFall: 0.1, L0: null, reduced: false };
+  }
+  reset();
+
+  function measure() {
+    const bot = document.getElementById("roBot");
+    const els = [layerHead, layerBody, layerBase];
+    if (!bot || !els[0]) { dims = null; return; }
+    dims = els.map(e => {
+      const cs = getComputedStyle(e);
+      return { x: e.offsetLeft, y: e.offsetTop, w: parseFloat(cs.width) || e.offsetWidth, h: parseFloat(cs.height) || e.offsetHeight };
+    });
+  }
+
+  function down(t) {
+    reset();
+    S.reduced = reducedNow();
+    measure();
+    S.phase = "press";
+    S.downAt = t;
+    S.simT = t;
+    ensureLoop();
+  }
+
+  function enterGrab(t) {
+    S.phase = "grab";
+    S.grabAt = t;
+    S.grabbed = true;
+    S.upAt = t;
+    S.pos = S.pos.map(() => mkPos(S.head.x, S.head.y));
+  }
+
+  function pushReversal(t) {
+    S.revs.push(t);
+    S.revs = S.revs.filter(r => t - r <= SPEC.shake.windowMs);
+    if (S.revs.length >= 2) {
+      const iv = S.revs[S.revs.length - 1] - S.revs[S.revs.length - 2];
+      S.tau = clamp(iv * 0.667, 40, 160);
+    }
+    if (S.revs.length >= SPEC.shake.reversals) {
+      if (!S.shakeActive) { S.shakeActive = true; S.shakeStart = S.shakeStart ?? t; }
+      S.shakeLast = t;
+    }
+  }
+
+  function move(x, y, t, force = false) {
+    if (S.phase === "idle" || S.phase === "drop") return;
+    advance(t);
+    if (S.phase === "press") {
+      if (S.upAt != null) return;
+      if (!S.anchor) S.anchor = { x, y };
+      S.head = { x, y };
+      if (force || Math.hypot(x - S.anchor.x, y - S.anchor.y) > SPEC.grab.moveStart) { enterGrab(t); S.head = { x, y }; S.pos = S.pos.map(() => mkPos(x, y)); S.lastMoveT = t; }
+      return;
+    }
+    const dtm = Math.max(1, t - (S.lastMoveT ?? t - 16));
+    const rawX = (x - S.head.x) / dtm * 1000, rawY = (y - S.head.y) / dtm * 1000;
+    S.vx = 0.5 * S.vx + 0.5 * rawX;
+    S.vy = 0.5 * S.vy + 0.5 * rawY;
+    S.head = { x, y };
+    S.lastMoveT = t;
+    S.hist.push({ t, v: S.vx });
+    while (S.hist.length && t - S.hist[0].t > 1500) S.hist.shift();
+    const sign = S.vx > 60 ? 1 : S.vx < -60 ? -1 : 0;
+    if (sign !== 0) {
+      if (S.sign !== 0 && sign !== S.sign) {
+        if (S.peak >= SPEC.shake.speed * (S.shakeActive ? SPEC.shake.keepRatio : 1)) pushReversal(t);
+        S.peak = 0;
+      }
+      S.sign = sign;
+      S.peak = Math.max(S.peak, Math.abs(S.vx));
+    }
+  }
+
+  function up(t, moved = false, fall = 0) {
+    if (S.phase === "idle") return;
+    advance(t);
+    if (S.phase === "press") {
+      if (S.upAt == null) { S.upAt = t; S.tap = true; }
+      return;
+    }
+    if (S.phase === "grab") startDrop(t, fall);
+  }
+
+  function startDrop(t, fall) {
+    S.L0 = grabLayers(t);
+
+    const shaken = S.shakeActive || (S.shakeEnd != null && t - S.shakeEnd <= SPEC.shake.endGap);
+    if (S.shakeActive) { S.shakeActive = false; S.shakeEnd = S.shakeLast; }
+    if (S.shakeEnd != null && S.shakeLast - S.shakeStart >= SPEC.shake.dizzyAfter) S.dizzyUntil = Math.max(S.dizzyUntil, t + SPEC.shake.dizzyMs);
+    S.phase = "drop";
+    S.dropAt = t;
+    S.fall = Math.max(0, fall);
+    const sec = S.fall > 0.5 ? Math.sqrt(2 * S.fall / SPEC.drop.g) : 0.1;
+    S.tFall = clamp(sec, 0.04, SPEC.drop.maxFallMs / 1000);
+    if (shaken) {
+      S.dizzyFrom = t + S.tFall * 1000;
+      S.dizzyUntil = Math.max(S.dizzyUntil, S.dizzyFrom + SPEC.shake.landDizzyMs);
+    }
+  }
+
+  function stepSim(cur, dt) {
+
+    const f = SPEC.grab.follow, Z = SPEC.grab.damping, sec = dt / 1000;
+    for (let i = 1; i < 3; i++) {
+      const w = 2 * Z / (0.016667 / -Math.log(1 - f[i]));
+      const p = S.pos[i];
+      p.vx += (w * w * (S.head.x - p.x) - 2 * Z * w * p.vx) * sec;
+      p.vy += (w * w * (S.head.y - p.y) - 2 * Z * w * p.vy) * sec;
+      p.x += p.vx * sec;
+      p.y += p.vy * sec;
+    }
+    S.pos[0] = mkPos(S.head.x, S.head.y);
+    const gate = S.shakeActive || (S.shakeEnd != null && cur - S.shakeEnd < SPEC.shake.calmMs) ? 1 : 0;
+    const [k, c0] = SPEC.shake.spring;
+    const c = S.shakeActive ? c0 : SPEC.shake.calmDamping;
+    S.sg += ((S.shakeActive ? 1 : 0) - S.sg) * (1 - Math.exp(-dt / (S.shakeActive ? 40 : 150)));
+    for (let i = 0; i < 3; i++) {
+      const u = gate ? clamp(velAt(cur - i * S.tau) / SPEC.shake.speed, -1, 1) * SPEC.shake.maxRot : 0;
+      const o = S.osc[i];
+      o.w += (k * (u - o.th) - c * o.w) * dt / 1000;
+      o.th += o.w * dt / 1000;
+    }
+  }
+
+    function recentSpeed(t) {
+    let m = Math.abs(velAt(t));
+    for (let i = S.hist.length - 1; i >= 0 && t - S.hist[i].t <= SPEC.shake.slowWindow; i--) m = Math.max(m, Math.abs(S.hist[i].v));
+    return t - (S.lastMoveT ?? -1e9) > SPEC.shake.slowWindow ? Math.abs(velAt(t)) : m;
+  }
+
+  function velAt(t) {
+    const h = S.hist;
+    if (!h.length) return 0;
+    if (t >= h[h.length - 1].t) return t - h[h.length - 1].t > 120 ? 0 : h[h.length - 1].v;
+    for (let i = h.length - 1; i >= 0; i--) if (h[i].t <= t) return h[i].v;
+    return 0;
+  }
+
+  function advance(t) {
+    if (S.phase === "idle") return;
+    if (S.phase === "press" && S.upAt == null && t - S.downAt >= SPEC.grab.holdMs) enterGrab(t);
+    if (S.shakeActive) {
+      if (recentSpeed(t) < SPEC.shake.stopSpeed) { if (S.slowSince == null) S.slowSince = t; } else S.slowSince = null;
+    }
+    const stopped = S.shakeActive && S.slowSince != null && t - S.slowSince >= SPEC.shake.stopMs;
+    if (S.shakeActive && (stopped || t - S.shakeLast > SPEC.shake.endGap)) {
+      S.shakeActive = false;
+      S.shakeEnd = S.shakeLast;
+      if (S.shakeLast - S.shakeStart >= SPEC.shake.dizzyAfter) S.dizzyUntil = S.shakeEnd + SPEC.shake.dizzyMs;
+      S.shakeStart = null; S.revs = [];
+    }
+    let cur = S.simT;
+    while (cur < t) { const dt = Math.min(4, t - cur); cur += dt; stepSim(cur, dt); }
+    S.simT = Math.max(S.simT, t);
+    const P = SPEC.press, D = SPEC.drop;
+    if (S.phase === "press" && S.upAt != null && !S.grabbed && t > S.upAt + P.doneMs) S.phase = "idle";
+    if (S.phase === "drop") {
+      const end = S.reduced ? D.fadeMs : S.tFall * 1000 + D.landMs + D.restMs;
+      if (t > S.dropAt + end && t > S.dizzyUntil) S.phase = "idle";
+    }
+  }
+
+    function pressScale(t, delay) {
+    if (S.downAt == null) return [1, 1];
+    const tt = t - delay;
+    if (tt < S.downAt) return [1, 1];
+    const P = SPEC.press;
+    const held = (S.upAt == null || tt < S.upAt) ? tt - S.downAt : S.upAt - S.downAt;
+    const p = powerOut(held / P.ms);
+    const sx = 1 + (P.sx - 1) * p, sy = 1 + (P.sy - 1) * p;
+    if (S.upAt == null || tt < S.upAt) return [sx, sy];
+    const r = springStep(P.rel[0], P.rel[1], (tt - S.upAt) / 1000);
+    return [lerp(sx, 1, r), lerp(sy, 1, r)];
+  }
+
+  function grabLayers(t) {
+    const G = SPEC.grab;
+    const L = [0, 1, 2].map(() => ({ tx: 0, ty: 0, rot: 0 }));
+    if (S.reduced) return L;
+    const h = springStep(G.hangSpring[0], G.hangSpring[1], (t - S.grabAt) / 1000);
+    L[1].ty = G.hang[0] * h;
+    L[2].ty = G.hang[1] * h;
+    for (let i = 1; i < 3; i++) {
+      L[i].tx = clamp(S.pos[i].x - S.head.x, -G.maxLag, G.maxLag);
+      L[i].ty += clamp(S.pos[i].y - S.head.y, -G.maxLag, G.maxLag);
+    }
+    const calm = 1 - S.sg;
+    const tilt = clamp(L[2].tx * G.tilt, -G.tiltMax, G.tiltMax) * calm;
+    L[2].rot = tilt;
+    L[1].rot = tilt * 0.5;
+    const wob = G.wobbleDeg * calm * clamp((t - S.grabAt) / 300, 0, 1) * Math.exp(-Math.hypot(S.vx, S.vy) / 600);
+    for (let i = 0; i < 3; i++) {
+      L[i].rot += wob * Math.sin(2 * Math.PI * G.wobbleHz * (t - S.grabAt) / 1000 + i * 1.3);
+      L[i].rot += S.osc[i].th;
+      L[i].rot = clamp(L[i].rot, -SPEC.shake.maxRot, SPEC.shake.maxRot);
+    }
+    return L;
+  }
+
+  function separate(L) {
+    if (!dims) return;
+    const oy = dims[2].y + dims[2].h;
+    const ext = (i) => {
+      const r = Math.abs(L[i].rot) * Math.PI / 180;
+      return (dims[i].h * L[i].sy * Math.cos(r) + dims[i].w * L[i].sx * Math.sin(r)) / 2;
+    };
+    const center = (i) => {
+      const cy = dims[i].y + dims[i].h / 2;
+      return cy + L[i].ty + (L[i].sy - 1) * (cy - oy);
+    };
+    for (let i = 1; i < 3; i++) {
+      const need = center(i - 1) + ext(i - 1) + ext(i) + SPEC.gap;
+      const c = center(i);
+      if (c < need) L[i].ty += need - c;
+    }
+  }
+
+  function eyesAt(t) {
+    const D = SPEC.drop, P = SPEC.press, K = SPEC.shake;
+    const swirl = (S.shakeActive && S.shakeStart != null && t - S.shakeStart >= K.dizzyAfter) || (t >= S.dizzyFrom && t < S.dizzyUntil);
+    if (S.reduced && swirl) return S.shakeActive ? "squint" : "big";
+    if (S.phase === "grab") {
+      if (swirl) return "swirl";
+      if (S.shakeActive) return "squint";
+      return "big";
+    }
+    if (S.phase === "drop") {
+      if (swirl) return "swirl";
+      const tt = t - S.dropAt, tl = S.tFall * 1000;
+      if (S.reduced) return "";
+      if (tt < tl) return "big";
+      const a = tt - tl;
+      return a < 110 ? "squint" : a < 260 ? "" : a < 380 ? "dash" : "";
+    }
+    if (S.phase === "press") {
+      if (t <= S.downAt) return "";
+      if (S.upAt == null || t < S.upAt) return "squint";
+      if (!S.tap) return "";
+      const a = t - S.upAt;
+      return a < P.happyAfter ? "big" : (a < P.happyAfter + P.happyMs ? "happy" : "");
+    }
+    return "";
+  }
+
+  function pose(t) {
+    const P = { l: [0, 1, 2].map(() => ({ tx: 0, ty: 0, sx: 1, sy: 1, rot: 0 })), op: 1, eyes: { shape: "", lx: 0, ly: 0 }, streak: { o: 0, w: 12, dir: -1 } };
+    if (S.phase === "idle") return P;
+    const D = SPEC.drop;
+    P.eyes.shape = eyesAt(t);
+    if (S.phase === "press" || S.phase === "grab") {
+      if (!S.reduced) for (let i = 0; i < 3; i++) { const s = pressScale(t, SPEC.press.delay[i]); P.l[i].sx = s[0]; P.l[i].sy = s[1]; }
+      if (S.phase === "grab") {
+        const L = grabLayers(t);
+        for (let i = 0; i < 3; i++) Object.assign(P.l[i], L[i]);
+        separate(P.l);
+        if (P.eyes.shape === "big") { P.eyes.lx = clamp(S.vx / 900, -1, 1) * 3; P.eyes.ly = clamp(S.vy / 900, -1, 1) * 2; }
+      }
+      return P;
+    }
+    // drop
+    const tt = (t - S.dropAt) / 1000;
+    if (S.reduced) { P.op = lerp(0.4, 1, clamp(tt * 1000 / D.fadeMs, 0, 1)); return P; }
+    if (tt < S.tFall) {
+      const h = 1 - Math.pow(tt / S.tFall, 2);
+      const b = powerOut(tt * 1000 / 60);
+      for (let i = 0; i < 3; i++) {
+        P.l[i].tx = S.L0[i].tx * h; P.l[i].ty = S.L0[i].ty * h; P.l[i].rot = S.L0[i].rot * h;
+        P.l[i].sx = lerp(1, D.stretch[0], b); P.l[i].sy = lerp(1, D.stretch[1], b);
+      }
+      return P;
+    }
+    const a = tt - S.tFall;
+    const hop = D.bounce * Math.max(S.fall, 24);
+    for (let i = 0; i < 3; i++) {
+      if (a * 1000 < D.landMs) {
+        const p = powerOut(a * 1000 / D.landMs);
+        P.l[i].sx = lerp(D.stretch[0], D.land[0], p); P.l[i].sy = lerp(D.stretch[1], D.land[1], p);
+      } else {
+        const ab = a - D.landMs / 1000;
+        const r = springStep(BK, BC, ab - D.stack[i] / 1000);
+        P.l[i].sx = lerp(D.land[0], 1, r); P.l[i].sy = lerp(D.land[1], 1, r);
+        P.l[i].ty = -hop * bounce1(ab - Math.max(0, D.stack[i] / 1000 - 0.0));
+      }
+    }
+    return P;
+  }
+
+  function apply(P) {
+    if (!dims) measure();
+    const bot = document.getElementById("roBot");
+    if (!bot || !dims) return;
+    const els = [layerHead, layerBody, layerBase];
+    const ox = dims[2].x + dims[2].w / 2, oy = dims[2].y + dims[2].h;
+    els.forEach((el, i) => {
+      const l = P.l[i], d = dims[i];
+      const cx = d.x + d.w / 2, cy = d.y + d.h / 2;
+      const tx = l.tx + (l.sx - 1) * (cx - ox), ty = l.ty + (l.sy - 1) * (cy - oy);
+      el.style.translate = `${tx.toFixed(2)}px ${ty.toFixed(2)}px`;
+      el.style.rotate = `${l.rot.toFixed(2)}deg`;
+      el.style.scale = `${l.sx.toFixed(4)} ${l.sy.toFixed(4)}`;
+
+      el.style.setProperty("--gx", `${clamp(-0.6 * tx - 1.2 * l.rot, -10, 10).toFixed(2)}px`);
+      el.style.setProperty("--gy", `${clamp(-0.6 * ty + 30 * (1 - l.sy), -8, 8).toFixed(2)}px`);
+    });
+    bot.style.opacity = P.op === 1 ? "" : String(P.op);
+    const st = document.getElementById("streak");
+    if (st) {
+      st.style.opacity = P.streak.o.toFixed(2);
+      st.style.width = P.streak.w.toFixed(1) + "px";
+      const hx = dims[0].x + P.l[0].tx, hy = dims[0].y + dims[0].h * 0.38 + P.l[0].ty;
+      st.style.left = (P.streak.dir < 0 ? hx - P.streak.w - 6 : hx + dims[0].w + 6).toFixed(1) + "px";
+      st.style.top = hy.toFixed(1) + "px";
+    }
+    petWrap.dataset.eyes = P.eyes.shape;
+    eyesWrap.style.translate = (P.eyes.lx || P.eyes.ly) ? `${P.eyes.lx.toFixed(2)}px ${P.eyes.ly.toFixed(2)}px` : "";
+    petWrap.dataset.motion = S.phase;
+    kickNativeGlass();
+  }
+
+  function clearStyles() {
+    [layerHead, layerBody, layerBase].forEach(el => {
+      el.style.translate = ""; el.style.rotate = ""; el.style.scale = "";
+      el.style.removeProperty("--gx"); el.style.removeProperty("--gy");
+    });
+    const bot = document.getElementById("roBot");
+    if (bot) bot.style.opacity = "";
+    const st = document.getElementById("streak");
+    if (st) st.style.opacity = "";
+    eyesWrap.style.translate = "";
+    delete petWrap.dataset.eyes;
+    delete petWrap.dataset.motion;
+    kickNativeGlass();
+  }
+
+  function loop() {
+    const t = now();
+    advance(t);
+    apply(pose(t));
+    if (S.phase !== "idle") raf = requestAnimationFrame(loop);
+    else { raf = null; clearStyles(); if (api.onIdle) api.onIdle(); }
+  }
+  function ensureLoop() {
+    kickNativeGlass();
+    if (!manual && raf == null) raf = requestAnimationFrame(loop);
+  }
+
+    let demoTimer = null;
+  function demo(name, done) {
+    clearInterval(demoTimer);
+    const t0 = now();
+    down(t0);
+    const plan = {
+      press: { upAt: 90, end: 90 },
+      drag: { moveFrom: 340, upAt: 1900, path: (s) => ({ x: 150 * Math.sin(s * 2.2), y: 18 * Math.sin(s * 1.1) }) },
+      shake: { moveFrom: 340, upAt: 2600, path: (s) => ({ x: 60 * Math.sin(s * 2 * Math.PI * 4), y: 0 }) },
+      drop: { moveFrom: 1e9, upAt: 450, fall: 60 },
+    }[name];
+    if (!plan) return false;
+    demoTimer = setInterval(() => {
+      const t = now(), e = t - t0;
+      if (plan.moveFrom != null && e >= plan.moveFrom) { const p = plan.path ? plan.path((e - plan.moveFrom) / 1000) : { x: 0, y: 0 }; move(p.x, p.y, t); }
+      if (e >= plan.upAt) { clearInterval(demoTimer); up(t, true, plan.fall || 0); if (done) done(); }
+    }, 8);
+    return true;
+  }
+
+  const api = {
+    SPEC, springStep, bounce1, down, move, up, advance, pose, apply, demo, reset, clearStyles,
+    get state() { return S; },
+    set manual(v) { manual = !!v; },
+    busy: () => S.phase !== "idle",
+    consumeClick: () => { const g = S.grabbed; S.grabbed = false; return !g; },
+  };
+  return api;
+})();
+
+RoMotion.onIdle = () => { if (MOTION_DEMOS.includes(currentAction)) window.triggerAction(null); };
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) el.setAttribute(k, v === true ? "" : v);
+  }
+  kids.flat().forEach(c => c != null && el.append(c));
+  return el;
+}
+function fill(el, ...kids) {
+  el.replaceChildren(...kids.flat().filter(c => c != null && c !== false));
+  return el;
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function applyAmbient(st) {
+  ambient = st.ambient || null;
+  if (!ambient) return;
+  petWrap.setAttribute("aria-label", `ro · ${ambient.label}`);
+  if (!currentAction && Date.now() >= previewLockUntil) petCaption.textContent = ambient.label;
+}
+let toastTimer = null;
+function hideToast() {
+  clearTimeout(toastTimer);
+  toastEl.style.display = "none";
+  toastEl.replaceChildren();
+}
+let toastMs = 0;
+function showToast(nodes, ms) {
+  clearTimeout(toastTimer);
+  fill(toastEl, nodes);
+  toastEl.style.display = "flex";
+  toastMs = ms || 0;
+  if (ms) toastTimer = setTimeout(hideToast, ms);
+}
+function holdToast() { clearTimeout(toastTimer); }
+function resumeToast() {
+  if (toastMs && !toastEl.matches(":hover") && !toastEl.contains(document.activeElement)) {
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, toastMs);
+  }
+}
+toastEl.addEventListener("mouseenter", holdToast);
+toastEl.addEventListener("focusin", holdToast);
+toastEl.addEventListener("mouseleave", resumeToast);
+toastEl.addEventListener("focusout", () => setTimeout(resumeToast, 0));
+
+{
+  const chip = (box, label, title, fn) => box.append(h("button", { class: "opt-btn", type: "button", text: label, title,
+    onclick: (e) => { e.stopPropagation(); fn(); } }));
+  const moodBox = document.getElementById("moodChips"), actBox = document.getElementById("actionChips");
+  MOOD_ORDER.forEach(m => chip(moodBox, MOOD_META[m].label, MOOD_META[m].caption, () => window.setMoodPreview(m, 8000)));
+  ALL_ACTIONS.filter(a => a !== "gaze").forEach(a => chip(actBox, ACTION_META[a].label, ACTION_META[a].desc, () => window.triggerAction(a)));
+}
+if (!isNativeHost) {
+  document.body.classList.add("web");
+  setBubbleOpen(true);
+}
+setPollRate(!bubble.classList.contains("hidden"));
+</script>
+</body>
+</html>

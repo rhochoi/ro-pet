@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ro-pet"
+version = "0.1.0"
+description = "A desktop pet made of three layers and two eyes. Decorate your Mac."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+ro-pet = "ro_pet.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ro_pet"]
