@@ -88,7 +88,12 @@ jobs:
         run: |
           notes="Apple Silicon only. Drag ro-pet to Applications."
           [ "$SIGNED" = "true" ] || notes="$notes This build is not notarized: see the README for the first-launch warning."
-          gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg --title "$GITHUB_REF_NAME" --notes "$notes"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # The release already exists (e.g. created in the web UI): keep its title and notes, add the DMG.
+            gh release upload "$GITHUB_REF_NAME" build/ro-pet-*.dmg --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg --title "$GITHUB_REF_NAME" --notes "$notes"
+          fi
 
       - name: Remove temporary keychain
         if: always()
