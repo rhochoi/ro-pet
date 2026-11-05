@@ -8,6 +8,19 @@ A small desktop pet made of three layers and two eyes. It is only for decorating
 - Drag it anywhere, drag it to the top to send it to the menu bar, and let it wander along the bottom of the screen
 - No dependencies. Python standard library plus one Swift file. Everything stays on `127.0.0.1`.
 
+## Install (macOS app)
+
+1. Download the latest `ro-pet-<version>.dmg` from the Releases page and open it.
+2. Drag **ro-pet** onto **Applications**, then open it from Applications. It lives in the menu bar (no Dock icon).
+
+Apple Silicon (M1 or later) only. Releases that are not notarized show a warning the first time, because the app is not signed with a paid Apple Developer ID. The pet is safe to run: the source is in this repository and it only talks to `127.0.0.1`. To open it anyway:
+
+- **macOS 15 or later:** double-click the app, click **Done** on the warning, open **System Settings → Privacy & Security**, scroll down, click **Open Anyway** next to "ro-pet", and confirm.
+- **macOS 13–14:** right-click (or Control-click) the app, choose **Open**, then **Open** again.
+- **Terminal alternative:** `xattr -dr com.apple.quarantine /Applications/ro-pet.app`
+
+Not on Apple Silicon, or prefer no installer? Use the commands below.
+
 ## Run
 
 macOS (needs Xcode command line tools for `swiftc`):
