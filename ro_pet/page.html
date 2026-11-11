@@ -11,6 +11,7 @@
     --chalk-soft: #EFE9DC;
     --chalk-muted: #7E786D;
     --accent: #FF4B1F;
+    --ro-orange: #F3874E;  
     --accent-text: #BC2F0E;
     --selected: var(--panel-fg);  
     --bot-fill: var(--chalk);
@@ -42,7 +43,8 @@ body.glass-dark {
     --bot-eye: var(--chalk);
   }
 * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-html, body {
+html,
+body {
     margin: 0; padding: 0;
     width: 100%; height: 100%;
     background: transparent;
@@ -50,6 +52,11 @@ html, body {
     color: var(--panel-fg);
     overflow: hidden;
   }
+body.web { background: #DCD6CA; overflow-y: auto; }
+body.web .stage { min-height: 398px; }
+@media (prefers-color-scheme: dark) {
+  body.web { background: #2F2C28; }
+}
 .stage {
     position: relative;
     width: 100%; height: 100%;
@@ -68,17 +75,22 @@ body.place-left .stage {
     align-items: flex-start;
   }
 .bubble {
+    --control: 32px;
+    --control-sm: 28px;
     width: 356px;
+    max-width: 100%;
     background: var(--panel-bg);
     color: var(--panel-fg);
-    border: 1.5px solid var(--panel-border);
-    border-radius: 20px;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
     box-shadow: 0 16px 36px rgba(15, 14, 13, 0.22);
-    padding: 12px 13px 12px 13px;
+    padding: 16px;
     margin-bottom: 8px;
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 12px;
+    font-size: 13px;
+    line-height: 1.4;
     transition: opacity 0.16s ease, transform 0.16s cubic-bezier(.22,1,.36,1), background-color 0.2s ease, border-color 0.2s ease;
     transform-origin: bottom right;
     position: relative;
@@ -88,69 +100,59 @@ body.place-left .stage {
     flex: 0 0 auto;
     box-sizing: border-box;
   }
-.bubble > .bubble-top, .bubble > .ask-form, .bubble > .toast { flex-shrink: 0; }
+.bubble > .bubble-top,
+.bubble > .ask-form,
+.bubble > .toast { flex-shrink: 0; }
 .bubble > .tab-pane.active { min-height: 60px; }
-.bubble.hidden {
-    display: none;
-  }
+.bubble.hidden { display: none; }
+.bubble :is(button,
+summary,
+select):focus-visible { outline: 2px solid var(--panel-fg); outline-offset: 2px; }
 body.place-top .bubble {
     margin-bottom: 0;
     margin-top: 8px;
     transform-origin: top right;
   }
-body.place-left .bubble {
-    transform-origin: bottom left;
-  }
-body.place-top.place-left .bubble {
-    transform-origin: top left;
-  }
+body.place-left .bubble { transform-origin: bottom left; }
+body.place-top.place-left .bubble { transform-origin: top left; }
 .bubble-tail {
     position: absolute;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     background: var(--panel-bg);
-    border-right: 1.5px solid var(--panel-border);
-    border-bottom: 1.5px solid var(--panel-border);
-    bottom: -8px;
-    right: 38px;
+    border-right: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--panel-border);
+    bottom: -7px;
+    right: 40px;
     transform: rotate(45deg);
-    border-bottom-right-radius: 3px;
     z-index: 2;
     transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 body.place-top .bubble-tail {
     bottom: auto;
-    top: -8px;
+    top: -7px;
     border-right: none;
     border-bottom: none;
-    border-left: 1.5px solid var(--panel-border);
-    border-top: 1.5px solid var(--panel-border);
-    border-top-left-radius: 3px;
-    border-bottom-right-radius: 0;
+    border-left: 1px solid var(--panel-border);
+    border-top: 1px solid var(--panel-border);
   }
 body.place-left .bubble-tail {
     right: auto;
-    left: 38px;
+    left: 40px;
   }
 .bubble-top {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 6px;
+    gap: 12px;
     align-items: center;
-    padding-bottom: 7px;
-    border-bottom: 1px solid var(--divider);
     cursor: grab;
   }
 .bubble-top:active { cursor: grabbing; }
-.top-left {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
+.top-left { display: flex; align-items: center; min-height: 24px; }
 .brand-tag {
-    font-size: 13px;
-    font-weight: 900;
-    letter-spacing: -0.03em;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     color: var(--panel-fg);
   }
 .top-right {
@@ -159,153 +161,146 @@ body.place-left .bubble-tail {
     display: flex;
     align-items: center;
     gap: 4px;
+    margin-right: -4px;  
   }
 .close-x-btn {
     background: transparent;
     border: none;
     color: var(--muted);
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     width: 24px;
     height: 24px;
+    padding: 0;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.14s, color 0.14s;
+    transition: background-color 0.14s, color 0.14s;
   }
-.close-x-btn:hover {
+.close-x-btn:hover { background: var(--panel-soft); color: var(--panel-fg); }
+.segmented {
+    display: flex;
+    gap: 0;
+    height: var(--control);
+    padding: 2px;
     background: var(--panel-soft);
-    color: var(--panel-fg);
+    border-radius: 999px;
   }
-.tab-pane {
-    display: none;
-    flex-direction: column;
-    gap: 8px;
-  }
-.tab-pane.active {
-    display: flex;
-  }
-.settings-stream {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-.setting-block {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--divider);
-  }
-.setting-block:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-.block-title {
-    font-size: 11px;
-    font-weight: 700;
+.segmented .opt-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: var(--control-sm);
+    padding: 0 4px;
+    background: transparent;
+    border: none;
+    border-radius: 999px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-  }
-.options-row {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
-.opt-btn {
-    flex: 1;
-    min-width: 58px;
-    background: var(--panel-soft);
-    color: var(--panel-fg);
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    padding: 4px 6px;
-    font-size: 11px;
+    font: inherit;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    text-align: center;
-    transition: all 0.12s;
+    transition: background-color 0.14s ease, color 0.14s ease;
   }
-.opt-btn:hover {
-    border-color: var(--panel-fg);
-  }
-.opt-btn.active {
-    background: var(--panel-fg);
-    color: var(--panel-bg);
-    border-color: var(--panel-fg);
-    font-weight: 800;
-  }
-.toggle-row {
+.segmented .opt-btn:hover { background: transparent; color: var(--panel-fg); }
+.segmented .opt-btn.active,
+.segmented .opt-btn.active:hover { background: var(--selected); color: var(--panel-bg); }
+.tab-pane { display: none; flex-direction: column; gap: 12px; }
+.tab-pane.active {
     display: flex;
-    justify-content: space-between;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    margin: 0 -8px;
+    padding: 2px 8px 12px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  }
+.tab-pane.active::-webkit-scrollbar { display: none; }
+.tab-pane.active > * { flex-shrink: 0; }
+.action-btn {
+    height: var(--control-sm);
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.14s, opacity 0.14s;
+  }
+.settings-stream { display: flex; flex-direction: column; gap: 16px; }
+.setting-block { display: flex; flex-direction: column; gap: 8px; }
+.block-title { font-size: 11px; font-weight: 600; color: var(--muted); }
+.block-sub { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.opt-btn {
+    flex: 1;
+    display: inline-flex;
     align-items: center;
-    padding: 2px 0;
-  }
-.toggle-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-.toggle-name {
-    font-size: 11px;
-    font-weight: 700;
+    justify-content: center;
+    gap: 4px;
+    height: var(--control);
+    padding: 0 12px;
+    background: var(--panel-soft);
     color: var(--panel-fg);
+    border: none;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.12s, color 0.12s;
   }
-.toggle-sub {
-    font-size: 11px;
-    color: var(--muted);
-  }
-.switch {
-    position: relative;
-    display: inline-block;
-    width: 38px;
-    height: 22px;
-  }
-.switch input { position: absolute; inset: 0; margin: 0; opacity: 0; width: 100%; height: 100%; }
+.opt-btn:hover { background: var(--divider); }
+.opt-btn.active { background: var(--selected); color: var(--panel-bg); }
+.opt-btn:active,
+.action-btn:active,
+.mini-btn:active { opacity: 0.72; }
+.toggle-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.toggle-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.toggle-name { font-size: 13px; font-weight: 600; color: var(--panel-fg); }
+.toggle-sub { font-size: 11px; line-height: 1.4; color: var(--muted); }
+.switch { position: relative; display: block; width: 40px; height: 24px; }
+.switch input { position: absolute; inset: 0; margin: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
 .switch:focus-within .slider { outline: 2px solid var(--panel-fg); outline-offset: 2px; }
 .slider {
     position: absolute;
-    cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: var(--panel-soft);
-    border: 1px solid var(--panel-border);
-    transition: 0.2s;
+    inset: 0;
+    pointer-events: none;
+    background-color: var(--divider);
+    transition: background-color 0.2s;
     border-radius: 999px;
   }
 .slider:before {
     position: absolute;
     content: "";
-    height: 16px;
-    width: 16px;
+    width: 20px;
+    height: 20px;
     left: 2px;
-    bottom: 2px;
-    background-color: var(--panel-fg);
-    transition: 0.2s;
+    top: 2px;
+    background-color: var(--muted);  
+    transition: transform 0.2s, background-color 0.2s;
     border-radius: 50%;
   }
-input:checked + .slider {
-    background-color: var(--selected);
-    border-color: var(--selected);
-  }
-input:checked + .slider:before {
-    transform: translateX(16px);
-    background-color: var(--panel-bg);
-  }
+input:checked + .slider { background-color: var(--selected); }
+input:checked + .slider:before { transform: translateX(16px); background-color: var(--panel-bg); }
 .pet-wrap {
-    --u: 3.8px;
+    --u: calc(3.8px * var(--pet-scale, 1));  
     flex-shrink: 0;
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     cursor: grab;
-    padding: 10px 14px 8px 14px;
+    padding: calc(10px * var(--pet-scale, 1)) calc(14px * var(--pet-scale, 1)) calc(8px * var(--pet-scale, 1));
     overflow: visible;
   }
 .pet-wrap:active { cursor: grabbing; }
+.pet-wrap:focus { outline: none; }
+.pet-wrap:focus-visible { outline: 2px solid var(--panel-fg); outline-offset: 2px; border-radius: 12px; }
 .ro-bot {
     width: calc(23 * var(--u));
     display: flex;
@@ -320,9 +315,11 @@ input:checked + .slider:before {
 .pill {
     background: var(--bot-fill);
     border-radius: 999px;
+    translate: calc(var(--sx, 0px) + var(--look-x, 0px)) calc(var(--sy, 0px) + var(--look-y, 0px));
     transition:
       width 0.34s cubic-bezier(.22, 1, .36, 1),
       transform 0.28s cubic-bezier(.22, 1, .36, 1),
+      translate 0.28s cubic-bezier(.22, 1, .36, 1),
       margin-bottom 0.25s cubic-bezier(.22, 1, .36, 1),
       background-color 0.2s ease,
       box-shadow 0.2s ease;
@@ -340,7 +337,150 @@ input:checked + .slider:before {
     width: calc(23 * var(--u));
     height: calc(6 * var(--u));
   }
+body.material-clay .pill {
+    border: 1px solid rgba(26, 25, 23, 0.14);
+    box-shadow:
+      inset 0 3px 5px rgba(255, 255, 255, 0.92),
+      inset 0 -3px 6px rgba(26, 25, 23, 0.20),
+      0 3px 7px rgba(15, 14, 13, 0.32);
+  }
+body.glass-dark.material-clay .pill {
+    border: none;
+    box-shadow:
+      inset 0 2.5px 4px rgba(255, 255, 255, 0.22),
+      inset 0 -3px 5px rgba(0, 0, 0, 0.38),
+      0 2px 5px rgba(15, 14, 13, 0.22);
+  }
+body.material-glass .ro-bot { filter: drop-shadow(0 7px 14px rgba(10, 12, 20, 0.22)); }
+body.material-glass .pill {
+    --g-tint-top: rgba(255, 255, 255, 0.40);
+    --g-tint-bot: rgba(255, 255, 255, 0.18);
+    --g-sheen: rgba(255, 255, 255, 0.70);
+    --g-caustic: rgba(255, 255, 255, 0.45);
+    --g-rim: rgba(255, 255, 255, 0.95);
+    --g-rim-soft: rgba(255, 255, 255, 0.40);
+    --g-edge: rgba(20, 24, 36, 0.22);
+    z-index: 1;
+    overflow: hidden;
+    isolation: isolate;
+    border: none;
+    background:
+      radial-gradient(130% 95% at 28% -10%, var(--g-sheen) 0%, rgba(255, 255, 255, 0.10) 42%, rgba(255, 255, 255, 0) 62%),
+      radial-gradient(85% 130% at 72% 125%, var(--g-caustic) 0%, rgba(255, 255, 255, 0) 58%),
+      linear-gradient(180deg, var(--g-tint-top), var(--g-tint-bot));
+    backdrop-filter: blur(12px) saturate(180%) brightness(1.06);
+    -webkit-backdrop-filter: blur(12px) saturate(180%) brightness(1.06);
+    box-shadow:
+      inset 0 1px 0 var(--g-rim),                       
+      inset 0 -1px 0 var(--g-rim-soft),                 
+      inset 0 -7px 10px -6px var(--g-caustic),          
+      inset 0 5px 8px -6px rgba(0, 0, 0, 0.10),         
+      inset 2px 0 3px -2px rgba(110, 170, 255, 0.35),   
+      inset -2px 0 3px -2px rgba(255, 170, 110, 0.30),  
+      0 0 0 0.6px var(--g-edge);                        
+  }
+body.material-glass .pill::before {
+    content: ""; position: absolute; z-index: 0; pointer-events: none;
+    left: 12%; top: 10%; width: 48%; height: 26%; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.85) 35%, rgba(255, 255, 255, 0.35) 75%, rgba(255, 255, 255, 0) 100%);
+    filter: blur(0.6px);
+  }
+body.material-glass .pill::after {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.15) 45%, rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0.55) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
 .g-env { display: none; }
+body.material-glass .g-env {
+    --env-sky: rgba(255, 255, 255, 0.55);
+    --env-haze: rgba(214, 228, 255, 0.22);
+    --env-horizon: rgba(52, 60, 86, 0.20);
+    --env-floor: rgba(26, 30, 44, 0.06);
+    --env-light: rgba(255, 255, 255, 0.85);
+    --env-warm: rgba(255, 214, 170, 0.55);
+    --env-scene:
+      radial-gradient(9% 16% at 24% 30%, var(--env-light), rgba(255, 255, 255, 0) 100%),
+      radial-gradient(7% 12% at 71% 26%, var(--env-warm), rgba(255, 214, 170, 0) 100%),
+      linear-gradient(180deg, var(--env-sky) 0%, var(--env-haze) 40%, var(--env-horizon) 50%, var(--env-floor) 64%, rgba(255, 255, 255, 0.08) 100%);
+    display: block; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    border-radius: inherit; overflow: hidden; opacity: 0.75;
+    background: var(--env-scene);
+    background-size: 150% 230%;
+    background-position: calc(50% + var(--gx, 0px)) calc(46% + var(--gy, 0px));
+    transition: background-position 0.45s cubic-bezier(.22, 1, .36, 1);
+  }
+body.material-glass .pill .g-env::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--env-scene);
+    background-size: 90% 140%;
+    background-position: calc(50% - 1.6 * var(--gx, 0px)) calc(52% - 1.6 * var(--gy, 0px));
+    transform: scaleY(-1);
+    mask: radial-gradient(closest-side, transparent 58%, #000 82%, #000 100%);
+    -webkit-mask: radial-gradient(closest-side, transparent 58%, #000 82%, #000 100%);
+    transition: background-position 0.45s cubic-bezier(.22, 1, .36, 1);
+  }
+body.glass-dark.material-glass .g-env {
+    --env-sky: rgba(190, 200, 225, 0.30);
+    --env-haze: rgba(120, 132, 165, 0.20);
+    --env-horizon: rgba(0, 0, 0, 0.30);
+    --env-floor: rgba(0, 0, 0, 0.10);
+    --env-light: rgba(255, 255, 255, 0.55);
+    --env-warm: rgba(255, 196, 140, 0.38);
+  }
+@media (prefers-reduced-motion: reduce) {
+  body.material-glass .g-env,
+  body.material-glass .pill .g-env::before { transition: none; }
+}
+body.material-glass.native-glass-liquid .pill {
+    background: radial-gradient(130% 95% at 28% -10%, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0) 55%);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    box-shadow: 0 0 0 0.6px var(--g-edge);
+  }
+body.material-glass.native-glass-liquid .pill::after { opacity: 0.5; }
+body.material-glass.native-glass-liquid .g-env { display: none; }
+body.material-glass.native-glass-blur .pill {
+    --g-tint-top: rgba(255, 255, 255, 0.16);
+    --g-tint-bot: rgba(255, 255, 255, 0.04);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+body.glass-dark.material-glass.native-glass-blur .pill {
+    --g-tint-top: rgba(40, 42, 52, 0.25);
+    --g-tint-bot: rgba(14, 15, 20, 0.30);
+  }
+body.glass-dark.material-glass .pill {
+    --g-tint-top: rgba(40, 42, 52, 0.55);
+    --g-tint-bot: rgba(14, 15, 20, 0.62);
+    --g-sheen: rgba(255, 255, 255, 0.30);
+    --g-caustic: rgba(255, 255, 255, 0.22);
+    --g-rim: rgba(255, 255, 255, 0.55);
+    --g-rim-soft: rgba(255, 255, 255, 0.18);
+    --g-edge: rgba(0, 0, 0, 0.55);
+  }
+body.glass-dark.material-glass .pill::before { opacity: 0.45; }
+body.glass-dark.material-glass .pill::after { opacity: 0.6; }
+body.material-glass { --bot-eye: #15161A; }
+body.glass-dark.material-glass { --bot-eye: #F6F4EF; }
+body.material-glass .eyes {  
+    z-index: 2;
+    filter: drop-shadow(0 0 0.8px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 1.6px rgba(255, 255, 255, 0.6));
+  }
+body.glass-dark.material-glass .eyes {
+    filter: drop-shadow(0 0 0.8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+  }
+body.color-orange { --bot-fill: var(--ro-orange); --bot-eye: var(--ink); }
+body.color-orange.material-glass:not(.native-glass-liquid) .pill { --g-tint-top: rgba(243, 135, 78, 0.78); --g-tint-bot: rgba(243, 135, 78, 0.62); }
+body.color-orange.material-glass.native-glass-liquid .pill {
+    background:
+      radial-gradient(130% 95% at 28% -10%, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%),
+      linear-gradient(180deg, rgba(255, 164, 100, 0.26), rgba(255, 130, 64, 0.06)),
+      rgba(243, 135, 78, 0.36);
+    box-shadow: 0 0 0 0.6px rgba(255, 226, 205, 0.6);
+  }
+body.color-orange.material-glass.native-glass-liquid .pill::after { opacity: 0.85; }
+body.color-orange.material-glass .eyes { filter: none; }
 .eyes {
     position: absolute;
     left: calc(9 * var(--u));
@@ -369,6 +509,8 @@ input:checked + .slider:before {
     height: calc(3.25 * var(--u));
   }
 .eye.blink { height: 2.5px !important; }
+.eye { animation: eyeIn 0.14s cubic-bezier(.22, 1, .36, 1); }
+@keyframes eyeIn { from { scale: 1 0.25; } }
 .resolved-arch {
     display: none;
     width: calc(6.2 * var(--u));
@@ -378,36 +520,210 @@ input:checked + .slider:before {
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
+    animation: archIn 0.18s cubic-bezier(.22, 1, .36, 1);
   }
-.mood-idle .pill-head, .action-breathe .pill-head { animation: breatheHead 3.0s infinite ease-in-out; }
-.mood-idle .pill-body, .action-breathe .pill-body { animation: breatheBody 3.0s infinite ease-in-out; }
-.mood-idle .pill-base, .action-breathe .pill-base { animation: breatheBase 3.0s infinite ease-in-out; }
+@keyframes archIn { from { opacity: 0; scale: 0.8 0.3; } }
+.pet-wrap .pill-head { animation: breatheHead 3.0s infinite ease-in-out; }
+.pet-wrap .pill-body { animation: breatheBody 3.0s infinite ease-in-out; }
+.pet-wrap .pill-base { animation: breatheBase 3.0s infinite ease-in-out; }
+.mood-recording .pill { animation-duration: 2.2s; }
+.mood-focus .pill { animation-duration: 4.6s; }
+.mood-anxious .pill { animation-duration: 1.5s; }
+.mood-discovery .pill { animation-duration: 2.5s; }
+.mood-resolved .pill { animation-duration: 3.6s; }
+.action-breathe .pill-head { animation-name: breatheDeepHead; }
+.action-breathe .pill-body { animation-name: breatheDeepBody; }
+.action-breathe .pill-base { animation-name: breatheDeepBase; }
+.mood-recording .eyes { top: 66%; }
+.mood-recording .eye-l { width: calc(1.8 * var(--u)); height: calc(1.9 * var(--u)); }
+.mood-recording .eye-r { width: calc(1.6 * var(--u)); height: calc(1.7 * var(--u)); }
+.mood-focus .eyes { left: calc(8.6 * var(--u)); gap: calc(1.4 * var(--u)); }
+.mood-focus .eye-l { width: calc(2.8 * var(--u)); height: calc(1.3 * var(--u)); border-radius: 999px; }
+.mood-focus .eye-r { width: calc(2.5 * var(--u)); height: calc(1.3 * var(--u)); border-radius: 999px; }
+.mood-focus .pill-head { --sx: calc(0.5 * var(--u)); }
+.mood-anxious .eye-l { width: calc(1.5 * var(--u)); height: calc(1.7 * var(--u)); }
+.mood-anxious .eye-r { width: calc(1.2 * var(--u)); height: calc(1.4 * var(--u)); }
+.mood-anxious .pill-head { --sx: calc(-1.1 * var(--u)); }
+.mood-anxious .pill-body { --sx: calc(1.8 * var(--u)); }
+.mood-anxious .pill-base { --sx: calc(0.3 * var(--u)); }
+.mood-discovery .eye-l { width: calc(2.6 * var(--u)); height: calc(3.0 * var(--u)); border-radius: 50%; }
+.mood-discovery .eye-r { width: calc(2.1 * var(--u)); height: calc(2.5 * var(--u)); border-radius: 50%; }
+.mood-discovery .pill-head { --sy: calc(-0.7 * var(--u)); }
+.mood-resolved .eyes { left: calc(8.8 * var(--u)); }
+.mood-resolved .eye { display: none; }
+.mood-resolved .resolved-arch { display: block; }
 @keyframes breatheHead {
     0%, 100% { transform: translateY(0) scaleX(1); }
-    22%      { transform: translateY(-2.2px) scaleX(0.985); }
-    55%      { transform: translateY(-1.0px) scaleX(1.025); }
-    80%      { transform: translateY(0.4px) scaleX(1); }
+    22%      { transform: translateY(calc(-2.2px * var(--pet-scale, 1))) scaleX(0.985); }
+    55%      { transform: translateY(calc(-1.0px * var(--pet-scale, 1))) scaleX(1.025); }
+    80%      { transform: translateY(calc(0.4px * var(--pet-scale, 1))) scaleX(1); }
   }
 @keyframes breatheBody {
     0%, 100% { transform: translateY(0) scaleX(1); }
-    32%      { transform: translateY(-1.4px) scaleX(0.99); }
-    65%      { transform: translateY(-0.4px) scaleX(1.015); }
+    32%      { transform: translateY(calc(-1.4px * var(--pet-scale, 1))) scaleX(0.99); }
+    65%      { transform: translateY(calc(-0.4px * var(--pet-scale, 1))) scaleX(1.015); }
     88%      { transform: translateY(0) scaleX(1); }
   }
 @keyframes breatheBase {
     0%, 100% { transform: translateY(0) scaleX(1); }
-    40%      { transform: translateY(-0.6px) scaleX(1); }
+    40%      { transform: translateY(calc(-0.6px * var(--pet-scale, 1))) scaleX(1); }
     70%      { transform: translateY(0) scaleX(1.012); }
   }
-
+.action-look-around .eyes { animation: lookEyes 3.0s infinite cubic-bezier(.22,1,.36,1); }
+.action-look-around .pill-head { animation: lookHead 3.0s infinite cubic-bezier(.22,1,.36,1); }
+.action-look-around .pill-body { animation: lookBody 3.0s infinite cubic-bezier(.22,1,.36,1); }
+@keyframes breatheDeepHead {
+    0%, 100% { transform: translateY(0) scaleX(1); }
+    38%      { transform: translateY(calc(-5px * var(--pet-scale, 1))) scaleX(0.97); }
+    70%      { transform: translateY(calc(-1px * var(--pet-scale, 1))) scaleX(1.035); }
+  }
+@keyframes breatheDeepBody {
+    0%, 100% { transform: translateY(0) scaleX(1); }
+    44%      { transform: translateY(calc(-3.2px * var(--pet-scale, 1))) scaleX(0.98); }
+    76%      { transform: translateY(calc(-0.6px * var(--pet-scale, 1))) scaleX(1.025); }
+  }
+@keyframes breatheDeepBase {
+    0%, 100% { transform: translateY(0) scaleX(1); }
+    50%      { transform: translateY(calc(-1.2px * var(--pet-scale, 1))) scaleX(0.995); }
+    82%      { transform: translateY(0) scaleX(1.018); }
+  }
+@keyframes lookEyes {
+    0%, 100% { transform: translate(0, -50%); }
+    15%, 38% { transform: translate(calc(-2.8 * var(--u)), -50%); }
+    48%, 78% { transform: translate(calc(2.4 * var(--u)), -50%); }
+    90%      { transform: translate(0, -50%); }
+  }
+@keyframes lookHead {
+    0%, 100% { transform: translateX(0); }
+    22%, 38% { transform: translateX(calc(-1.0 * var(--u))); }
+    55%, 78% { transform: translateX(calc(1.0 * var(--u))); }
+    92%      { transform: translateX(0); }
+  }
+@keyframes lookBody {
+    0%, 100% { transform: translateX(0); }
+    28%, 38% { transform: translateX(calc(-0.4 * var(--u))); }
+    60%, 78% { transform: translateX(calc(0.4 * var(--u))); }
+    94%      { transform: translateX(0); }
+  }
+.action-walk .pill-base { animation: walkBase 1.3s infinite ease-in-out; }
+.action-walk .pill-body { animation: walkBody 1.3s infinite ease-in-out; }
+.action-walk .pill-head { animation: walkHead 1.3s infinite ease-in-out; }
+@keyframes walkBase {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(calc(2.2 * var(--u))) scaleX(1.04); }
+    50%      { transform: translateX(0) scaleX(1); }
+    75%      { transform: translateX(calc(-2.2 * var(--u))) scaleX(1.04); }
+  }
+@keyframes walkBody {
+    0%, 100% { transform: translateX(0); }
+    34%      { transform: translateX(calc(1.6 * var(--u))); }
+    50%      { transform: translateX(0); }
+    84%      { transform: translateX(calc(-1.6 * var(--u))); }
+  }
+@keyframes walkHead {
+    0%, 100% { transform: translateX(0); }
+    42%      { transform: translateX(calc(1.0 * var(--u))); }
+    50%      { transform: translateX(0); }
+    92%      { transform: translateX(calc(-1.0 * var(--u))); }
+  }
+.action-thinking .pill-head { animation: thinkHead 1.6s infinite ease-in-out; }
+.action-thinking .eyes { animation: thinkEyes 1.6s infinite ease-in-out; }
+@keyframes thinkHead {
+    0%, 100% { transform: rotate(0deg) translateY(0); }
+    40%      { transform: rotate(-5deg) translateY(calc(-2px * var(--pet-scale, 1))); }
+    75%      { transform: rotate(2deg) translateY(0); }
+  }
+@keyframes thinkEyes {
+    0%, 100% { transform: translate(0, -50%); }
+    40%      { transform: translate(calc(1px * var(--pet-scale, 1)), -55%); }
+  }
+.action-alert .ro-bot { animation: alertJump 0.7s linear; transform-origin: 50% 100%; }
+.action-alert .eye-l { width: calc(2.8 * var(--u)); height: calc(4.6 * var(--u)); border-radius: 50%; }
+.action-alert .eye-r { width: calc(2.4 * var(--u)); height: calc(4.0 * var(--u)); border-radius: 50%; }
+@keyframes alertJump {
+    0%   { transform: translateY(0) scale(1, 1); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    30%  { transform: translateY(calc(-12px * var(--pet-scale, 1))) scale(0.98, 1.06); animation-timing-function: cubic-bezier(.5, 0, .8, .5); }
+    54%  { transform: translateY(0) scale(1.05, 0.93); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+    76%  { transform: translateY(calc(-3px * var(--pet-scale, 1))) scale(0.99, 1.01); animation-timing-function: ease-in-out; }
+    100% { transform: translateY(0) scale(1, 1); }
+  }
+.action-drowsy .pill-head,
+.action-drowsy .pill-body,
+.action-drowsy .pill-base { animation: none; }
+.action-drowsy .pill-head { --sy: calc(0.8 * var(--u)); }
+.action-drowsy .eye-l,
+.action-drowsy .eye-r { height: 2px !important; border-radius: 999px; }
+.action-drowsy .ro-bot { animation: drowsySway 4.8s 3 ease-in-out forwards; }
+@keyframes drowsySway {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(calc(2px * var(--pet-scale, 1))) rotate(1.2deg); }
+  }
+.action-pet .pill-head {
+    --sy: calc(0.8 * var(--u));
+    animation: petLean 1.2s infinite ease-in-out;  
+  }
+.action-pet .eye { display: none; }
+.action-pet .resolved-arch { display: block; }
+.action-pet .pill-body { --sy: calc(0.3 * var(--u)); }
+@keyframes petLean {
+    0%, 100% { transform: rotate(-1.4deg) scaleX(1.04); }
+    50%      { transform: rotate(1.4deg) scaleX(1.04); }
+  }
+.action-drag .ro-bot {
+    transform: scaleY(1.10) scaleX(0.94);
+  }
+.action-drag .pill-base {
+    transform: translateY(calc(1.4 * var(--u)));
+  }
 .pet-wrap.docking {
-    transform: translateY(-6px) scale(calc(1.04 - 0.82 * var(--dock, 0)));
+    transform: translateY(calc(-6px * var(--pet-scale, 1))) scale(calc(1.04 - 0.82 * var(--dock, 0)));
     transform-origin: 50% 20%;
     transition: transform 90ms linear;
   }
 .pet-wrap.docking .eyes { top: 18%; }
 .pet-wrap.docking .pet-label { opacity: calc(1 - 2 * var(--dock, 0)); }
-
+.action-shake .ro-bot {
+    animation: shakeAnim 0.35s infinite ease-in-out;
+  }
+@keyframes shakeAnim {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(calc(-6px * var(--pet-scale, 1))) rotate(-3deg); }
+    75%      { transform: translateX(calc(6px * var(--pet-scale, 1))) rotate(3deg); }
+  }
+.action-drop .ro-bot {
+    animation: dropSquash 0.65s cubic-bezier(.22,1,.36,1);
+  }
+@keyframes dropSquash {
+    0%   { transform: translateY(calc(-14px * var(--pet-scale, 1))) scaleY(1.08) scaleX(0.94); }
+    40%  { transform: translateY(0) scaleY(0.82) scaleX(1.14); }
+    70%  { transform: translateY(calc(-4px * var(--pet-scale, 1))) scaleY(1.04) scaleX(0.98); }
+    100% { transform: translateY(0) scaleY(1) scaleX(1); }
+  }
+.action-success .ro-bot { animation: successJump 1s linear; transform-origin: 50% 100%; }
+.action-success .resolved-arch { display: block; }
+.action-success .eye { display: none; }
+@keyframes successJump {
+    0%   { transform: translateY(0) scale(1, 1); animation-timing-function: ease-in-out; }
+    16%  { transform: translateY(0) scale(1.06, 0.9); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    46%  { transform: translateY(calc(-16px * var(--pet-scale, 1))) scale(0.97, 1.07); animation-timing-function: cubic-bezier(.5, 0, .8, .5); }
+    66%  { transform: translateY(0) scale(1.06, 0.92); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+    84%  { transform: translateY(calc(-4px * var(--pet-scale, 1))) scale(0.99, 1.02); animation-timing-function: ease-in-out; }
+    100% { transform: translateY(0) scale(1, 1); }
+  }
+.action-failure .ro-bot {
+    animation: failureAnim 0.7s cubic-bezier(.36,.07,.19,.97);
+  }
+.action-failure .pill-head { --sx: calc(-1.1 * var(--u)); }
+.action-failure .pill-body { --sx: calc(1.5 * var(--u)); }
+.action-failure .eye-l { width: calc(1.4 * var(--u)); height: calc(1.6 * var(--u)); }
+.action-failure .eye-r { width: calc(1.1 * var(--u)); height: calc(1.3 * var(--u)); }
+@keyframes failureAnim {
+    0%, 100% { transform: translateX(0); }
+    20%      { transform: translateX(calc(-5px * var(--pet-scale, 1))); }
+    40%      { transform: translateX(calc(5px * var(--pet-scale, 1))); }
+    60%      { transform: translateX(calc(-3px * var(--pet-scale, 1))); }
+    80%      { transform: translateX(calc(3px * var(--pet-scale, 1))); }
+  }
 .pet-label {
     margin-top: 5px;
     background: rgba(22, 22, 26, 0.78);
@@ -427,10 +743,6 @@ input:checked + .slider:before {
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.2);
   }
-.pet-wrap:hover .pet-label {
-    opacity: 0.92;
-    transform: translateY(0);
-  }
 body.theme-chalk .pet-label {
     background: rgba(245, 244, 239, 0.86);
     color: #16161a;
@@ -440,38 +752,32 @@ body.theme-chalk .pet-label {
     --spring: linear(0, 0.031, 0.107, 0.208, 0.319, 0.429, 0.534, 0.628, 0.71, 0.78, 0.838, 0.884, 0.921, 0.949, 0.97, 0.985, 0.996, 1.003, 1.008, 1.01, 1);
   }
 [hidden] { display: none !important; }
-.stale-banner { flex-shrink: 0; font-size: 11px; line-height: 1.4; padding: 6px 9px; border-radius: 10px;
+.stale-banner { flex-shrink: 0; font-size: 11px; line-height: 1.4; padding: 6px 9px; border-radius: 6px;
     background: var(--panel-soft); border: 1px solid var(--panel-border); color: var(--panel-fg); }
 .stale-banner[hidden] { display: none; }
-.bubble button, .bubble input, .bubble select, .bubble summary, .bubble [role="option"], .bubble .switch {
+.bubble button,
+.bubble input,
+.bubble select,
+.bubble summary,
+.bubble [role="option"],
+.bubble .switch {
     min-width: 24px; min-height: 24px;
   }
 .bubble summary { cursor: pointer; font-size: 11px; }
-.block-sub { font-size: 11px; color: var(--muted); line-height: 1.4; }
-.bubble { max-width: 100%; }
-
 .toast {
-    background: var(--panel-soft); border: 1px solid var(--panel-border); border-radius: 14px;
-    padding: 9px 11px; display: flex; flex-direction: column; gap: 7px; position: relative; overflow: hidden;
+    background: var(--panel-soft); border: 1px solid var(--panel-border); border-radius: 12px;
+    padding: 12px; display: flex; flex-direction: column; gap: 8px; position: relative; overflow: hidden;
   }
-.toast-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 800; }
-
-kbd { font: inherit; font-weight: 800; background: var(--panel-soft); border-radius: 4px; padding: 0 4px; }
-.tab-pane.active {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin;
-    scrollbar-gutter: stable; padding: 0 3px 12px 0; margin-right: -4px;
-    
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
-            mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
-  }
-.tab-pane.active > * { flex-shrink: 0; }
+.toast-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 800; }
+kbd { font: inherit; font-weight: 800; background: var(--panel-soft); border-radius: 6px; padding: 0 4px; }
 .streak { position: absolute; height: 2.5px; width: 12px; border-radius: 2px; background: var(--muted); opacity: 0; pointer-events: none; }
-.pet-wrap[data-motion] .pet-label { opacity: 0; }
 .pet-label { transition: opacity 0.18s ease; }
-.pet-wrap[data-motion] .pill { animation: none !important; }
+.pet-wrap[data-motion] .pill { animation: none !important; transition: none !important; }
 .pet-wrap[data-motion] .ro-bot { animation: none !important; transform: none !important; }
 .pet-wrap[data-eyes] .eye { transition: none !important; box-sizing: border-box; }
-.pet-wrap[data-eyes="squint"] .eye, .pet-wrap[data-eyes="happy"] .eye, .pet-wrap[data-eyes="swirl"] .eye {
+.pet-wrap[data-eyes="squint"] .eye,
+.pet-wrap[data-eyes="happy"] .eye,
+.pet-wrap[data-eyes="swirl"] .eye {
     background: transparent !important; border: 0 solid var(--bot-eye); border-radius: 0;
   }
 .pet-wrap[data-eyes="squint"] .eye { width: calc(2.7 * var(--u)) !important; height: calc(2.7 * var(--u)) !important; }
@@ -499,56 +805,67 @@ kbd { font: inherit; font-weight: 800; background: var(--panel-soft); border-rad
     white-space: nowrap;
   }
 @media (prefers-reduced-motion: reduce) {
-*, *::before, *::after {
-      animation: none !important;
-      transition: none !important;
-    }
+  *,
+  *::before,
+  *::after {
+          animation: none !important;
+          transition: none !important;
+        }
 }
-.preview-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.preview-chips .opt-btn { flex: 0 0 auto; width: auto; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+.peek-only { display: none; }
+body.edition-peek .bubble { height: auto; min-height: 0; max-height: calc(100vh - 158px); padding-bottom: 4px; }
+body.edition-peek .peek-only { display: flex; }
+.preview-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.preview-chips .opt-btn { height: var(--control-sm); padding: 0 8px; min-width: 0; font-weight: 400; }
 </style>
 </head>
-<body class="material-clay">
+<body class="material-clay edition-peek">
 <main id="stage" class="stage">
   <h1 class="sr-only">ro.bot pet</h1>
-    <div id="bubble" class="bubble hidden">
+  <div id="bubble" class="bubble hidden">
     <div class="bubble-tail" aria-hidden="true"></div>
 
-        <div id="bubbleTop" class="bubble-top" title="Drag to move">
+    <div id="bubbleTop" class="bubble-top">
       <div class="top-left">
-        <span class="brand-tag">ro</span>
+        <span class="brand-tag">ro.bot</span>
       </div>
       <div class="top-right">
-        <button id="moreBtn" class="close-x-btn" style="display:none;" title="Menu (bring to desktop, send to menu bar)">⋯</button>
-        <button id="closeBtn" class="close-x-btn" title="Close panel (Esc)">✕</button>
+        <button id="moreBtn" class="close-x-btn" style="display:none;" title="Menu (panel color, bring to desktop, send to menu bar)" aria-label="Menu"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.25"></circle><circle cx="8" cy="8" r="1.25"></circle><circle cx="13" cy="8" r="1.25"></circle></svg></button>
+        <button id="closeBtn" class="close-x-btn" title="Close panel (Esc)" aria-label="Close panel"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m3.5 3.5 9 9M12.5 3.5l-9 9"></path></svg></button>
       </div>
     </div>
     <div id="staleBanner" class="stale-banner" role="status" hidden></div>
 
     <div id="paneSettings" class="tab-pane active">
       <div class="settings-stream">
-
-                <div class="setting-block">
-          <div class="block-title">Material</div>
-          <div class="options-row">
+        <div class="setting-block">
+          <div id="materialTitle" class="block-title">Material</div>
+          <div class="segmented" role="group" aria-labelledby="materialTitle">
             <button class="opt-btn mat-opt" data-mat="clay">Clay</button>
             <button class="opt-btn mat-opt" data-mat="glass">Glass</button>
           </div>
         </div>
 
-                <div class="setting-block">
-          <div class="block-title">Body color</div>
-          <div class="options-row" style="flex-wrap:wrap;">
-            <button class="opt-btn look-opt" data-key="glass" data-value="auto" title="Follows the macOS appearance (light/dark)">System</button>
-            <button class="opt-btn look-opt" data-key="glass" data-value="light">Light</button>
-            <button class="opt-btn look-opt" data-key="glass" data-value="dark">Dark</button>
-            <button class="opt-btn look-opt" data-key="tint" data-value="sage">Sage</button>
-            <button class="opt-btn look-opt" data-key="tint" data-value="sky">Sky</button>
-            <button class="opt-btn look-opt" data-key="tint" data-value="lilac">Lilac</button>
+        <div class="setting-block">
+          <div id="colorTitle" class="block-title">ro color</div>
+          <div class="segmented" role="group" aria-labelledby="colorTitle">
+            <button class="opt-btn look-opt" data-key="color" data-value="auto">System</button>
+            <button class="opt-btn look-opt" data-key="color" data-value="light">Light</button>
+            <button class="opt-btn look-opt" data-key="color" data-value="dark">Dark</button>
+            <button class="opt-btn look-opt" data-key="color" data-value="orange">Orange</button>
           </div>
         </div>
 
-                <div class="setting-block">
+        <div class="setting-block">
+          <div id="sizeTitle" class="block-title">Size</div>
+          <div class="segmented" role="group" aria-labelledby="sizeTitle">
+            <button class="opt-btn size-opt" data-size="small" aria-pressed="false">Small</button>
+            <button class="opt-btn size-opt active" data-size="medium" aria-pressed="true">Medium</button>
+            <button class="opt-btn size-opt" data-size="big" aria-pressed="false">Big</button>
+          </div>
+        </div>
+
+        <div class="setting-block">
           <div class="toggle-row">
             <div class="toggle-text">
               <span class="toggle-name">Wander</span>
@@ -561,20 +878,22 @@ kbd { font: inherit; font-weight: 800; background: var(--panel-soft); border-rad
           </div>
         </div>
 
-                <div class="setting-block">
+        <div class="setting-block peek-only">
           <div class="block-title">Expression</div>
           <div id="moodChips" class="preview-chips"></div>
         </div>
-        <div class="setting-block">
+        <div class="setting-block peek-only">
           <div class="block-title">Motion</div>
           <div id="actionChips" class="preview-chips"></div>
         </div>
       </div>
     </div>
+
     <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;"></div>
+
   </div>
 
-    <div id="petWrap" class="pet-wrap mood-idle" title="Click: open panel · Right-click: menu · Drag: move (drag up to send to the menu bar)">
+  <div id="petWrap" class="pet-wrap mood-idle" aria-label="ro" role="button" tabindex="0">
     <div id="roBot" class="ro-bot">
       <span id="streak" class="streak" aria-hidden="true"></span>
       <div id="layerHead" class="pill pill-head">
@@ -615,11 +934,11 @@ const ACTION_META = {
   alert:       { label: "Startle",     desc: "Sudden hop, eyes widen" },
   drowsy:      { label: "Drowsy",      desc: "Head sinks, squinting, slow breaths" },
   gaze:        { label: "Gaze",        desc: "Eyes follow the cursor" },
-  pet:         { label: "Pet",         desc: "Squishes and smiles (mouse hover)" },
+  pet:         { label: "Pet",         desc: "Head presses down, leans in, smiles (rub the head)" },
   drag:        { label: "Drag",        desc: "Stretches tall, base sags" },
   shake:       { label: "Shake",       desc: "Layers sway side to side (quick shake)" },
   drop:        { label: "Land",        desc: "Landing squash and spring" },
-  success:     { label: "Success",     desc: "Happy jump, smiling eyes, 26u expand" },
+  success:     { label: "Success",     desc: "Crouch, happy jump, smiling eyes" },
   failure:     { label: "Failure",     desc: "Layers slip, tremble, tiny eyes" },
 };
 const ALL_ACTIONS = Object.keys(ACTION_META);
@@ -630,30 +949,58 @@ const bubbleTop = document.getElementById("bubbleTop");
 const petWrap = document.getElementById("petWrap");
 const petCaption = document.getElementById("petCaption");
 const closeBtn = document.getElementById("closeBtn");
+
+const paneSettings = document.getElementById("paneSettings");
 const staleBanner = document.getElementById("staleBanner");
-const toastEl = document.getElementById("toast");
 const wanderToggle = document.getElementById("wanderToggle");
+
 const layerHead = document.getElementById("layerHead");
 const layerBody = document.getElementById("layerBody");
 const layerBase = document.getElementById("layerBase");
 const eyesWrap = document.getElementById("eyesWrap");
 const eyeL = document.getElementById("eyeL");
 const eyeR = document.getElementById("eyeR");
+
 let currentMood = "idle";
 let currentAction = null;
 let actionTimer = null;
+let pickedAction = null;
+let moodFailure = false;
 let previewLockUntil = 0;
 const INITIAL_PREFS = __RO_PREFS__;
-const TINT_PRESETS = __RO_TINT_PRESETS__;
-const GLASS_CHOICES = ["auto", "light", "dark"];
-let glassMode = GLASS_CHOICES.includes(INITIAL_PREFS.glass) ? INITIAL_PREFS.glass : "auto";
-let tintMode = Object.keys(TINT_PRESETS).includes(INITIAL_PREFS.tint) ? INITIAL_PREFS.tint : "none";
+const COLOR_CHOICES = ["auto", "light", "dark", "orange"];
+const PANEL_CHOICES = ["auto", "light", "dark"];
+const ORANGE = "#F3874E";
+let colorMode = COLOR_CHOICES.includes(INITIAL_PREFS.color) ? INITIAL_PREFS.color : "auto";
+let panelMode = PANEL_CHOICES.includes(INITIAL_PREFS.panel) ? INITIAL_PREFS.panel : "auto";
 let materialMode = ["clay", "glass"].includes(INITIAL_PREFS.material) ? INITIAL_PREFS.material : "clay";
-let themeMode = ["ink", "chalk", "auto"].includes(INITIAL_PREFS.theme) ? INITIAL_PREFS.theme : "auto";
 let systemDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
-let ambient = null;
+
+if (document.body.classList.contains("edition-peek")) {
+  const chip = (box, key, label, title, fn) => {
+    const btn = h("button", { class: "opt-btn", type: "button", text: label, title,
+      onclick: (e) => { e.stopPropagation(); fn(); setTimeout(syncPreviewChips); } });
+    btn.dataset.preview = key;
+    box.append(btn);
+  };
+  const moodBox = document.getElementById("moodChips"), actBox = document.getElementById("actionChips");
+  
+  const syncPreviewChips = () => {
+    const previewing = Date.now() < previewLockUntil;
+    const mark = (box, on) => box.querySelectorAll(".opt-btn").forEach(btn => {
+      const active = on(btn.dataset.preview);
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+    mark(moodBox, m => previewing && m === currentMood);
+    mark(actBox, a => a === pickedAction && a === currentAction);
+  };
+  setInterval(() => { if (!bubble.classList.contains("hidden")) syncPreviewChips(); }, 250);
+  MOOD_ORDER.forEach(m => chip(moodBox, m, MOOD_META[m].label, MOOD_META[m].caption, () => window.setMoodPreview(m, 8000)));
+  ALL_ACTIONS.filter(a => a !== "gaze").forEach(a => chip(actBox, a, ACTION_META[a].label, ACTION_META[a].desc, () => { pickedAction = a; window.triggerAction(a); }));
+}
+
 const MATERIAL_CHOICES = ["clay", "glass"];
-const THEME_CHOICES = ["ink", "chalk", "auto"];
 let dockCaption = null;
 function updateMaterialUI() {
   for (const m of MATERIAL_CHOICES) {
@@ -673,85 +1020,72 @@ function updatePetCaption() {
   petCaption.textContent = currentAction ? (ACTION_META[currentAction]?.label || currentAction) : moodMeta.label;
 }
 
-function updateThemeUI() {
-  const isChalk = themeMode === "chalk" || (themeMode === "auto" && systemDark);
-  document.body.classList.toggle("theme-chalk", isChalk);
-  updateLookUI();
+function panelIsDark() {
+  return panelMode === "dark" || (panelMode === "auto" && systemDark);
 }
 
 function glassIsDark() {
-  return glassMode === "auto" ? systemDark : glassMode === "dark";
-}
-
-function relativeLuminance(hex) {
-  const rgb = hex.trim().slice(1).match(/../g).map(c => {
-    const s = parseInt(c, 16) / 255;
-    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+  return colorMode === "dark" || (colorMode === "auto" && systemDark);
 }
 
 function updateLookUI() {
   document.querySelectorAll(".look-opt").forEach(btn => {
-    const on = btn.dataset.key === "glass" ? tintMode === "none" && btn.dataset.value === glassMode : btn.dataset.value === tintMode;
+    const on = btn.dataset.value === colorMode;
     btn.classList.toggle("active", on);
     btn.setAttribute("aria-pressed", String(on));
   });
+  document.body.classList.toggle("theme-chalk", panelIsDark());
   document.body.classList.toggle("glass-dark", glassIsDark());
-  const bot = document.getElementById("roBot");
-  bot.style.removeProperty("--bot-fill");
-  bot.style.removeProperty("--bot-eye");
-  if (materialMode === "clay" && tintMode !== "none") {
-    const color = TINT_PRESETS[tintMode];
-    const css = getComputedStyle(bot);
-    const ink = css.getPropertyValue("--ink"), chalk = css.getPropertyValue("--chalk");
-    const lum = relativeLuminance(color);
-    const contrast = c => (Math.max(lum, relativeLuminance(c)) + 0.05) / (Math.min(lum, relativeLuminance(c)) + 0.05);
-    bot.style.setProperty("--bot-fill", color);
-    bot.style.setProperty("--bot-eye", contrast(ink) >= contrast(chalk) ? ink : chalk);
-  }
-  notifyHost({ type: "look", theme: themeMode, glass: glassMode, tint: tintMode });
+  document.body.classList.toggle("color-orange", colorMode === "orange");
+  notifyHost({ type: "look", color: colorMode, panel: panelMode });
+  notifyHost({ type: "prefs", material: materialMode });
   kickNativeGlass();
 }
 
 window.setLookPref = function(key, value) {
-  if (key === "theme" && THEME_CHOICES.includes(value)) { themeMode = value; updateThemeUI(); }
-  else if (key === "glass" && GLASS_CHOICES.includes(value)) glassMode = value;
-  else if (key === "tint" && (value === "none" || Object.keys(TINT_PRESETS).includes(value))) tintMode = value;
+  if (key === "color" && COLOR_CHOICES.includes(value)) colorMode = value;
+  else if (key === "panel" && PANEL_CHOICES.includes(value)) panelMode = value;
   else return;
   updateLookUI();
   return savePrefs({ [key]: value });
 };
 
-const savedPrefs = { material: materialMode, theme: themeMode, glass: glassMode, tint: tintMode };
+const savedPrefs = { material: materialMode, color: colorMode, panel: panelMode };
 async function savePrefs(changes) {
   let r = null;
   try { r = await apiPost("/api/prefs", changes); } catch (err) {}
   if (r && r.ok) { Object.assign(savedPrefs, changes); return; }
   if ("material" in changes) { materialMode = savedPrefs.material; updateMaterialUI(); }
-  if ("theme" in changes) { themeMode = savedPrefs.theme; updateThemeUI(); }
-  if ("glass" in changes) glassMode = savedPrefs.glass;
-  if ("tint" in changes) tintMode = savedPrefs.tint;
+  if ("color" in changes) colorMode = savedPrefs.color;
+  if ("panel" in changes) panelMode = savedPrefs.panel;
   updateLookUI();
   const why = r ? (r.error || r.output || "") : "Could not reach the server";
   showToast([h("div", { class: "toast-head", text: "Could not save the setting, so it was reverted. Please try again." }),
     why ? h("div", { class: "block-sub", text: why }) : null], 5000);
 }
 
-window.setThemeModeFromHost = function(mode) {
-  if (!THEME_CHOICES.includes(mode)) return;
-  themeMode = mode;
-  updateThemeUI();
-  savePrefs({ theme: mode });
+const PET_SCALES = { small: 0.75, medium: 1, big: 1.3 };
+let petScale = 1;
+window.setPetSize = function(name) {
+  const k = PET_SCALES[name];
+  if (!k) return false;
+  petScale = k;
+  document.documentElement.style.setProperty("--pet-scale", String(k));
+  document.querySelectorAll(".size-opt").forEach(btn => {
+    const on = btn.dataset.size === name;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  });
+  return true;
 };
-
-window.setMaterialFromHost = function(mode) {
-  if (MATERIAL_CHOICES.includes(mode)) {
-    materialMode = mode;
-    updateMaterialUI();
-    savePrefs({ material: mode });
-  }
-};
+document.querySelectorAll(".size-opt").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    
+    if (isNativeHost) notifyHost({ type: "size", size: btn.dataset.size });
+    else window.setPetSize(btn.dataset.size);
+  });
+});
 
 window.setWanderState = function(enabled) {
   if (wanderToggle) {
@@ -762,10 +1096,9 @@ window.setWanderState = function(enabled) {
 if (window.matchMedia) {
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
     systemDark = e.matches;
-    updateThemeUI();
+    updateLookUI();
   });
 }
-updateThemeUI();
 updateMaterialUI();
 
 function notifyHost(payload) {
@@ -776,16 +1109,18 @@ function notifyHost(payload) {
 
 let bubbleOpenedAt = 0;
 function setBubbleOpen(open) {
-  if (open && bubble.classList.contains("hidden")) bubbleOpenedAt = performance.now();
+  const opening = open && bubble.classList.contains("hidden");
+  if (opening) bubbleOpenedAt = performance.now();
   bubble.classList.toggle("hidden", !open);
+
+  if (opening) document.querySelectorAll(".tab-pane").forEach(p => { p.scrollTop = 0; });
   if (open && !isNativeHost) fitStage();
   notifyHost({ type: "bubble", open: !!open });
   if (window._poll !== undefined) setPollRate(open);
 }
 
 window.addEventListener("blur", () => {
-  if (bubble.classList.contains("hidden") || performance.now() - bubbleOpenedAt < 300 ||
-      false) return;
+  if (bubble.classList.contains("hidden") || performance.now() - bubbleOpenedAt < 300) return;
   setBubbleOpen(false);
 });
 
@@ -794,9 +1129,23 @@ window.toggleBubbleFromHost = function(forceOpen) {
   setBubbleOpen(forceOpen !== undefined ? forceOpen : isHidden);
 };
 
+let hitQueued = false;
+function reportHit() {
+  if (!isNativeHost || hitQueued) return;
+  hitQueued = true;
+  requestAnimationFrame(() => {
+    hitQueued = false;
+    const pad = 10;
+    const rects = [document.getElementById("roBot").getBoundingClientRect()];
+    if (!bubble.classList.contains("hidden")) rects.push(bubble.getBoundingClientRect());
+    notifyHost({ type: "hit", rects: rects.filter(r => r.width && r.height)
+      .map(r => [r.left - pad, r.top - pad, r.width + pad * 2, r.height + pad * 2].map(Math.round)) });
+  });
+}
 window.setBubblePlacement = function(isTop, isLeft) {
   document.body.classList.toggle("place-top", !!isTop);
   document.body.classList.toggle("place-left", !!isLeft);
+  reportHit();
 };
 
 function setMoodClass(mood) {
@@ -820,6 +1169,11 @@ function cycleMoodPreview() {
   window.setMoodPreview(MOOD_ORDER[idx], 8000);
 }
 
+petWrap.addEventListener("keydown", (e) => {
+  if (e.target !== petWrap || (e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault();
+  setBubbleOpen(bubble.classList.contains("hidden"));
+});
 petWrap.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   if (isNativeHost) notifyHost({ type: "menu" });
@@ -856,8 +1210,6 @@ document.querySelectorAll(".mat-opt").forEach(btn => {
 document.querySelectorAll(".look-opt").forEach(btn => {
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-
-    if (btn.dataset.key === "glass" && tintMode !== "none") window.setLookPref("tint", "none");
     window.setLookPref(btn.dataset.key, btn.dataset.value);
   });
 });
@@ -867,20 +1219,23 @@ wanderToggle.addEventListener("change", (e) => {
 });
 
 window.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  setBubbleOpen(false);
+  if (e.key === "Escape") setBubbleOpen(false);
 });
 
 const MOTION_DEMOS = ["press", "drag", "shake", "drop"];
 
+const ACTION_MS = { breathe: 6000, look_around: 3000, walk: 3900, thinking: 3200, alert: 1100, drowsy: 4800,
+                    pet: 2400, success: 1500, failure: 1500 };
+
 window.triggerAction = function(name, durationMs) {
   kickNativeGlass();
+  moodFailure = false;
   if (actionTimer) {
     clearTimeout(actionTimer);
     actionTimer = null;
   }
   eyesWrap.style.transform = "";
-  layerHead.style.transform = "";
+  clearHeadGaze();
 
   for (const act of ALL_ACTIONS) {
     petWrap.classList.remove(`action-${act.replace(/_/g, "-")}`);
@@ -897,7 +1252,8 @@ window.triggerAction = function(name, durationMs) {
   if (MOTION_DEMOS.includes(name)) {
     const meta = ACTION_META[name];
     if (meta) petCaption.textContent = meta.label;
-    if (!RoMotion.busy()) RoMotion.demo(name);
+    if (RoMotion.busy()) { RoMotion.reset(); RoMotion.clearStyles(); }
+    RoMotion.demo(name);
     return { ok: true, action: name, duration: 0 };
   }
   const cls = `action-${name.replace(/_/g, "-")}`;
@@ -906,7 +1262,7 @@ window.triggerAction = function(name, durationMs) {
   const meta = ACTION_META[name];
   if (meta) petCaption.textContent = meta.label;
 
-  const dur = (durationMs !== undefined) ? durationMs : 4500;
+  const dur = (durationMs !== undefined) ? durationMs : (ACTION_MS[name] || 4500);
   if (dur > 0) {
     actionTimer = setTimeout(() => {
       window.triggerAction(null);
@@ -915,8 +1271,11 @@ window.triggerAction = function(name, durationMs) {
   return { ok: true, action: name, duration: dur };
 };
 
-window.onHostDragStart = function(fromPet) {};   window.onHostDragMove = function(x, y) { RoMotion.move(x, y, performance.now(), true); };
-window.onHostDragShake = function() {};          window.onHostDragEnd = function(moved, fallPx) { RoMotion.up(performance.now(), !!moved, fallPx || 0); };
+window.onHostDragStart = function(fromPet) {};   
+window.onHostDragMove = function(x, y) { RoMotion.move(x, y, performance.now(), true); };
+window.onHostDragShake = function() {};          
+window.onHostDragEnd = function(moved, fallPx) { RoMotion.up(performance.now(), !!moved, fallPx || 0); };
+
 window.onHostDockProgress = function(p) {
   petWrap.style.setProperty("--dock", p);
   petWrap.classList.toggle("docking", p > 0);
@@ -936,26 +1295,64 @@ window.onHostDocked = function() {
   window.triggerAction(null);
 };
 
+const STROKE = { minTravelPx: 10, turns: 2, windowMs: 900, idleMs: 450 };
+function createStrokeDetector(spec = STROKE) {
+  let lastX = null, dir = 0, travel = 0, turns = [];
+  return {
+    move(x, t) {
+      const dx = lastX === null ? 0 : x - lastX;
+      lastX = x;
+      if (dx) {
+        const next = Math.sign(dx);
+        if (next !== dir) {
+          if (dir && travel >= spec.minTravelPx) turns.push(t);
+          dir = next;
+          travel = 0;
+        }
+        travel += Math.abs(dx);
+      }
+      turns = turns.filter(at => t - at <= spec.windowMs);
+      return turns.length >= spec.turns;
+    },
+    reset() { lastX = null; dir = 0; travel = 0; turns = []; },
+  };
+}
+
 let isPetHover = false;
-petWrap.addEventListener("mouseenter", () => {
-  if (RoMotion.busy() || currentAction === "drag" || currentAction === "shake" || currentAction === "drop") return;
-  if (isDrowsy) { wakeUpFromSleep(); return; }
-  isPetHover = true;
-  window.triggerAction("pet", 0);
-});
-
-petWrap.addEventListener("mouseleave", () => {
-  if (isPetHover) {
-    isPetHover = false;
-    if (currentAction === "pet") window.triggerAction(null);
+let strokeIdle = null;
+const strokeDetector = createStrokeDetector();
+function endStroke() {
+  clearTimeout(strokeIdle);
+  strokeDetector.reset();
+  if (!isPetHover) return;
+  isPetHover = false;
+  if (currentAction === "pet") window.triggerAction(null);
+}
+function feedStroke(x) {
+  if (RoMotion.busy() || !strokeDetector.move(x, performance.now())) return;
+  if (!isPetHover) {
+    if (currentAction) return;
+    isPetHover = true;
+    window.triggerAction("pet", 0);
   }
+  clearTimeout(strokeIdle);
+  strokeIdle = setTimeout(endStroke, STROKE.idleMs);
+}
+layerHead.addEventListener("mousemove", (e) => {
+  if (!isNativeHost && !e.buttons) feedStroke(e.clientX);
 });
+layerHead.addEventListener("mouseleave", endStroke);
 
-window.addEventListener("mousemove", (e) => {
+window.addEventListener("mousemove", (e) => followPointer(e.clientX, e.clientY));
+function clearHeadGaze() {
+  layerHead.style.removeProperty("--look-x");
+  layerHead.style.removeProperty("--look-y");
+}
+function followPointer(x, y) {
   recordActivity();
   if (currentMood === "resolved" || currentMood === "recording" || currentMood === "focus") {
     eyesWrap.style.transform = "";
-    layerHead.style.transform = "";
+    clearHeadGaze();
     kickNativeGlass();
     return;
   }
@@ -963,12 +1360,21 @@ window.addEventListener("mousemove", (e) => {
   const rect = layerHead.getBoundingClientRect();
   const cx = rect.left + rect.width * 0.68;
   const cy = rect.top + rect.height * 0.5;
-  const dx = Math.max(-3.0, Math.min(3.0, (e.clientX - cx) / 32));
-  const dy = Math.max(-1.8, Math.min(2.0, (e.clientY - cy) / 32));
+  const dx = Math.max(-3.0, Math.min(3.0, (x - cx) / 32));
+  const dy = Math.max(-1.8, Math.min(2.0, (y - cy) / 32));
   eyesWrap.style.transform = `translate(${dx}px, calc(-50% + ${dy}px))`;
-  layerHead.style.transform = `translate(${dx * 0.28}px, ${dy * 0.28}px)`;
+  layerHead.style.setProperty("--look-x", `${dx * 0.28}px`);
+  layerHead.style.setProperty("--look-y", `${dy * 0.28}px`);
   kickNativeGlass();
-});
+}
+
+window.onHostPointer = function(x, y) {
+  if (x === null) { endStroke(); return; }
+  followPointer(x, y);
+  const r = layerHead.getBoundingClientRect();
+  if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) feedStroke(x);
+  else endStroke();
+};
 
 setInterval(() => {
   if (currentMood === "resolved" || currentMood === "focus" || currentAction === "pet" || currentAction === "drowsy") return;
@@ -991,11 +1397,11 @@ window.addEventListener("mousedown", recordActivity);
 
 function wakeUpFromSleep() {
   isDrowsy = false;
-  window.triggerAction("alert", 2000);
+  window.triggerAction("alert");
 }
 
 setInterval(() => {
-  if (isPetHover || currentAction || currentMood !== "idle") return;
+  if (isPetHover || currentAction || currentMood !== "idle" || petWrap.hasAttribute("data-react")) return;
   if (!bubble.classList.contains("hidden")) return;
   if (!isDrowsy && (Date.now() - lastUserActivity > 75000)) {
     isDrowsy = true;
@@ -1004,13 +1410,14 @@ setInterval(() => {
 }, 4000);
 
 setInterval(() => {
-  if (isDrowsy || isPetHover || currentAction || RoMotion.busy() || currentMood !== "idle") return;
+  if (isDrowsy || isPetHover || currentAction || RoMotion.busy() || currentMood !== "idle" || petWrap.hasAttribute("data-react")) return;
   if (Math.random() < 0.40) {
-    window.triggerAction("look_around", 3200);
+    window.triggerAction("look_around");
   }
 }, 16000);
 
 const isNativeHost = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.roHost);
+
 var nativeGlassKind = "";
 var nativeGlassSent;
 var nativeGlassFrame;
@@ -1038,6 +1445,7 @@ for (const event of ["animationstart", "transitionrun"]) {
   document.addEventListener(event, e => { if (petWrap.contains(e.target)) kickNativeGlass(); }, true);
 }
 window.addEventListener("resize", kickNativeGlass);
+
 function glassPose(el, moving) {
   let rot = 0, sx = 1, sy = 1, op = 1;
   for (let n = el; n && n !== document.body; n = n.parentElement) {
@@ -1083,7 +1491,7 @@ function syncNativeGlass(now = performance.now()) {
   if (!rects.every(r => r[2] >= 1 && r[3] >= 1 && r[5] > 0.02)) rects = null;
   setNativeGlassClass(!!rects);
   const dark = glassIsDark();
-  const tint = TINT_PRESETS[tintMode];
+  const tint = colorMode === "orange" ? ORANGE : null;
   const key = rects ? JSON.stringify(rects) + dark + (tint || "") : "off";
   const changed = key !== nativeGlassSent;
   if (changed) {
@@ -1142,8 +1550,7 @@ function beginDrag(e, fromPet) {
   if (e.button !== 0) return;
   if (e.target.closest("button") || e.target.closest("input")) return;
   if (fromPet) {
-    if (currentAction === "pet") window.triggerAction(null);
-    Lid.reset();
+    endStroke();
     RoMotion.down(performance.now());
   }
   if (isNativeHost) {
@@ -1156,7 +1563,7 @@ function beginDrag(e, fromPet) {
   webShakeCount = 0;
 }
 
-petWrap.addEventListener("mousedown", (e) => beginDrag(e, true));
+petWrap.addEventListener("mousedown", (e) => { beginDrag(e, true); });
 bubbleTop.addEventListener("mousedown", (e) => beginDrag(e, false));
 
 window.addEventListener("mousemove", (e) => {
@@ -1218,6 +1625,8 @@ function applyState(st) {
 
     updatePetCaption();
 
+    if (moodFailure && st.mood !== "anxious" && currentAction === "failure") window.triggerAction(null);
+
     if (RoMotion.busy()) {
 
     } else if (st.action && st.action !== currentAction) {
@@ -1227,6 +1636,7 @@ function applyState(st) {
         window.triggerAction("success", 4000);
       } else if (st.mood === "anxious") {
         window.triggerAction("failure", 0);
+        moodFailure = true;
       }
     }
   }
@@ -1237,6 +1647,7 @@ function applyState(st) {
 let pollGeneration = 0;
 let pollController = null;
 let stateVersion = null;
+const OPEN_POLL_MS = 2000;
 function setPollRate(fast) {
   return refreshState(!fast);
 }
@@ -1277,10 +1688,17 @@ async function refreshState(wait = false) {
   } finally {
     if (generation === pollGeneration) {
       const closed = bubble.classList.contains("hidden");
-      window._poll = setTimeout(() => refreshState(closed), ok ? (closed ? 0 : 450) : 2000);
+      window._poll = setTimeout(() => refreshState(closed), ok ? (closed ? 0 : OPEN_POLL_MS) : 2000);
     }
   }
 }
+
+document.documentElement.addEventListener("mouseleave", () => {
+  if (currentAction || RoMotion.busy()) return;
+  eyesWrap.style.transform = "";
+  clearHeadGaze();
+  kickNativeGlass();
+});
 
 const RoMotion = (() => {
   const SPEC = {
@@ -1290,15 +1708,17 @@ const RoMotion = (() => {
             maxLag: 12, wobbleDeg: 1.4, wobbleHz: 1.5 },
     shake: { reversals: 3, windowMs: 1000, speed: 1200, spring: [180, 8], maxRot: 4, dizzyAfter: Infinity, dizzyMs: 0, landDizzyMs: 1200,
              spinMs: 600, endGap: 450, calmMs: 900, stopSpeed: 150, stopMs: 100, calmDamping: 12, keepRatio: 0.5, slowWindow: 120 },
-    drop: { g: 2400, maxFallMs: 280, stretch: [0.94, 1.08], landMs: 90, land: [1.12, 0.82], bounce: 0.2,
+    
+    drop: { g: 2400, maxFall: 24, stretch: [0.94, 1.08], landMs: 90, land: [1.07, 0.9], bounce: 0.2,
             bounceSpring: [500, 18], stack: [0, 60, 120], restMs: 360, fadeMs: 150 },
     gap: 1,
   };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const lerp = (a, b, t) => a + (b - a) * t;
+  const SC = (px) => px * petScale;
   const powerOut = (t, p = 2) => 1 - Math.pow(1 - clamp(t, 0, 1), p);
 
-    function springStep(k, c, sec) {
+  function springStep(k, c, sec) {
     if (sec <= 0) return 0;
     const w0 = Math.sqrt(k), z = c / (2 * w0);
     if (z < 1) {
@@ -1309,7 +1729,8 @@ const RoMotion = (() => {
     const s = Math.sqrt(z * z - 1), r1 = -w0 * (z - s), r2 = -w0 * (z + s);
     return 1 - (r2 * Math.exp(r1 * sec) - r1 * Math.exp(r2 * sec)) / (r2 - r1);
   }
-    const [BK, BC] = SPEC.drop.bounceSpring;
+  
+  const [BK, BC] = SPEC.drop.bounceSpring;
   const BW0 = Math.sqrt(BK), BZ = BC / (2 * BW0), BWD = BW0 * Math.sqrt(1 - BZ * BZ);
   const BHALF = Math.PI / BWD;
   let BPEAK = 0;
@@ -1422,9 +1843,8 @@ const RoMotion = (() => {
     if (S.shakeEnd != null && S.shakeLast - S.shakeStart >= SPEC.shake.dizzyAfter) S.dizzyUntil = Math.max(S.dizzyUntil, t + SPEC.shake.dizzyMs);
     S.phase = "drop";
     S.dropAt = t;
-    S.fall = Math.max(0, fall);
-    const sec = S.fall > 0.5 ? Math.sqrt(2 * S.fall / SPEC.drop.g) : 0.1;
-    S.tFall = clamp(sec, 0.04, SPEC.drop.maxFallMs / 1000);
+    S.fall = clamp(fall, 0, SPEC.drop.maxFall);
+    S.tFall = S.fall > 0.5 ? Math.max(0.04, Math.sqrt(2 * S.fall / SPEC.drop.g)) : 0.1;
     if (shaken) {
       S.dizzyFrom = t + S.tFall * 1000;
       S.dizzyUntil = Math.max(S.dizzyUntil, S.dizzyFrom + SPEC.shake.landDizzyMs);
@@ -1455,7 +1875,7 @@ const RoMotion = (() => {
     }
   }
 
-    function recentSpeed(t) {
+  function recentSpeed(t) {
     let m = Math.abs(velAt(t));
     for (let i = S.hist.length - 1; i >= 0 && t - S.hist[i].t <= SPEC.shake.slowWindow; i--) m = Math.max(m, Math.abs(S.hist[i].v));
     return t - (S.lastMoveT ?? -1e9) > SPEC.shake.slowWindow ? Math.abs(velAt(t)) : m;
@@ -1493,7 +1913,7 @@ const RoMotion = (() => {
     }
   }
 
-    function pressScale(t, delay) {
+  function pressScale(t, delay) {
     if (S.downAt == null) return [1, 1];
     const tt = t - delay;
     if (tt < S.downAt) return [1, 1];
@@ -1511,14 +1931,14 @@ const RoMotion = (() => {
     const L = [0, 1, 2].map(() => ({ tx: 0, ty: 0, rot: 0 }));
     if (S.reduced) return L;
     const h = springStep(G.hangSpring[0], G.hangSpring[1], (t - S.grabAt) / 1000);
-    L[1].ty = G.hang[0] * h;
-    L[2].ty = G.hang[1] * h;
+    L[1].ty = SC(G.hang[0]) * h;
+    L[2].ty = SC(G.hang[1]) * h;
     for (let i = 1; i < 3; i++) {
-      L[i].tx = clamp(S.pos[i].x - S.head.x, -G.maxLag, G.maxLag);
-      L[i].ty += clamp(S.pos[i].y - S.head.y, -G.maxLag, G.maxLag);
+      L[i].tx = clamp(S.pos[i].x - S.head.x, -SC(G.maxLag), SC(G.maxLag));
+      L[i].ty += clamp(S.pos[i].y - S.head.y, -SC(G.maxLag), SC(G.maxLag));
     }
     const calm = 1 - S.sg;
-    const tilt = clamp(L[2].tx * G.tilt, -G.tiltMax, G.tiltMax) * calm;
+    const tilt = clamp(L[2].tx / petScale * G.tilt, -G.tiltMax, G.tiltMax) * calm;
     L[2].rot = tilt;
     L[1].rot = tilt * 0.5;
     const wob = G.wobbleDeg * calm * clamp((t - S.grabAt) / 300, 0, 1) * Math.exp(-Math.hypot(S.vx, S.vy) / 600);
@@ -1677,7 +2097,7 @@ const RoMotion = (() => {
     if (!manual && raf == null) raf = requestAnimationFrame(loop);
   }
 
-    let demoTimer = null;
+  let demoTimer = null;
   function demo(name, done) {
     clearInterval(demoTimer);
     const t0 = now();
@@ -1709,6 +2129,9 @@ const RoMotion = (() => {
 
 RoMotion.onIdle = () => { if (MOTION_DEMOS.includes(currentAction)) window.triggerAction(null); };
 
+/* ===== Helpers: DOM builder, toast (save errors), time-of-day caption ===== */
+const toastEl = document.getElementById("toast");
+let ambient = null;
 function h(tag, props, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props || {})) {
@@ -1720,14 +2143,11 @@ function h(tag, props, ...kids) {
   kids.flat().forEach(c => c != null && el.append(c));
   return el;
 }
+/* replaceChildren would draw null as the word "null": skip empty slots */
 function fill(el, ...kids) {
   el.replaceChildren(...kids.flat().filter(c => c != null && c !== false));
   return el;
 }
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
 function applyAmbient(st) {
   ambient = st.ambient || null;
   if (!ambient) return;
@@ -1748,6 +2168,7 @@ function showToast(nodes, ms) {
   toastMs = ms || 0;
   if (ms) toastTimer = setTimeout(hideToast, ms);
 }
+/* Do not close while the pointer or keyboard focus is on it; count again after leaving */
 function holdToast() { clearTimeout(toastTimer); }
 function resumeToast() {
   if (toastMs && !toastEl.matches(":hover") && !toastEl.contains(document.activeElement)) {
@@ -1759,19 +2180,20 @@ toastEl.addEventListener("mouseenter", holdToast);
 toastEl.addEventListener("focusin", holdToast);
 toastEl.addEventListener("mouseleave", resumeToast);
 toastEl.addEventListener("focusout", () => setTimeout(resumeToast, 0));
-
-{
-  const chip = (box, label, title, fn) => box.append(h("button", { class: "opt-btn", type: "button", text: label, title,
-    onclick: (e) => { e.stopPropagation(); fn(); } }));
-  const moodBox = document.getElementById("moodChips"), actBox = document.getElementById("actionChips");
-  MOOD_ORDER.forEach(m => chip(moodBox, MOOD_META[m].label, MOOD_META[m].caption, () => window.setMoodPreview(m, 8000)));
-  ALL_ACTIONS.filter(a => a !== "gaze").forEach(a => chip(actBox, ACTION_META[a].label, ACTION_META[a].desc, () => window.triggerAction(a)));
-}
 if (!isNativeHost) {
+
   document.body.classList.add("web");
   setBubbleOpen(true);
 }
 setPollRate(!bubble.classList.contains("hidden"));
+
+if (isNativeHost) {
+  const hitWatch = new ResizeObserver(reportHit);
+  hitWatch.observe(bubble);
+  hitWatch.observe(document.getElementById("roBot"));
+  window.addEventListener("resize", reportHit);
+  reportHit();
+}
 </script>
 </body>
 </html>

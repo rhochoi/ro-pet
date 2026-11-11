@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- ro app icon: the cream face of ro (pill head + two eyes) on an ink ground. Colors match the pet: cream #F5F2EB and ink #1A1917 (no orange) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B2926"/>
+      <stop offset="1" stop-color="#1A1917"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#F5F2EB"/>
+      <stop offset="1" stop-color="#E2DCCD"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="pill"><rect x="182" y="373" width="660" height="278" rx="139"/></clipPath>
+    <filter id="drop" x="-20%" y="-30%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="tile" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+  <!-- macOS icon grid: an 824px tile inside a 100px margin -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)" filter="url(#tile)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#fff" stroke-opacity="0.08"/>
+  <!-- head: the same 19:8 pill as the pet -->
+  <rect x="182" y="373" width="660" height="278" rx="139" fill="url(#body)" filter="url(#drop)"/>
+  <rect x="182" y="373" width="660" height="150" fill="url(#shine)" clip-path="url(#pill)"/>
+  <!-- eyes: the pet proportions (2x4, 1.75x3.25, gap 2, 9 from the left of the head) -->
+  <rect x="494" y="442" width="69" height="139" rx="34.5" fill="#1A1917"/>
+  <rect x="632" y="455" width="61" height="113" rx="30.5" fill="#1A1917"/>
+</svg>

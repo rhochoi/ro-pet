@@ -37,13 +37,19 @@ class ServerTest(unittest.TestCase):
         self.assertIn(self.pet.token, html)
         self.assertNotRegex(html, "[가-힣]")
 
+    def test_page_uses_only_state_and_prefs(self):
+        import re
+        html = server.render_html("t", {})
+        self.assertEqual(sorted(set(re.findall(r"/api/[a-z_/]+", html))), ["/api/prefs", "/api/state"])
+
     def test_token_required(self):
         self.assertEqual(self.call("/api/state", token=False)[0], 403)
         self.assertEqual(self.call("/api/prefs", {"material": "glass"}, token=False)[0], 403)
 
     def test_prefs_roundtrip_and_validation(self):
-        self.assertEqual(self.call("/api/prefs", {"material": "glass", "tint": "sky"})[1]["prefs"],
-                         {"material": "glass", "tint": "sky"})
+        self.assertEqual(self.call("/api/prefs", {"material": "glass", "color": "orange", "panel": "dark"})[1]["prefs"],
+                         {"material": "glass", "color": "orange", "panel": "dark"})
+        self.assertFalse(self.call("/api/prefs", {"color": "sage"})[1]["ok"])  # the old tint presets are gone
         self.assertEqual(self.call("/api/state")[1]["prefs"]["material"], "glass")
         self.assertFalse(self.call("/api/prefs", {"material": "wood"})[1]["ok"])
 

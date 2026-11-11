@@ -17,12 +17,10 @@ PAGE = Path(__file__).with_name("page.html")
 MOODS = ("idle", "recording", "focus", "anxious", "discovery", "resolved")
 ACTIONS = ("press", "breathe", "look_around", "walk", "thinking", "alert", "drowsy", "gaze",
            "pet", "drag", "shake", "drop", "success", "failure")
-TINT_PRESETS = {"sage": "#8FB39A", "sky": "#8EBBE0", "lilac": "#B7A4E0"}
 PREF_CHOICES = {
     "material": ("clay", "glass"),
-    "theme": ("auto", "ink", "chalk"),
-    "glass": ("auto", "light", "dark"),
-    "tint": ("none", *TINT_PRESETS),
+    "color": ("auto", "light", "dark", "orange"),
+    "panel": ("auto", "light", "dark"),
 }
 MAX_ACTION_SEC = 60.0
 STATE_WAIT_TIMEOUT = 20.0
@@ -92,7 +90,7 @@ class Pet:
 def render_html(token, prefs=None):
     p = {k: v for k, v in (prefs or {}).items() if v in PREF_CHOICES.get(k, ())}
     return (PAGE.read_text(encoding="utf-8").replace("__RO_TOKEN__", token)
-            .replace("__RO_PREFS__", json.dumps(p)).replace("__RO_TINT_PRESETS__", json.dumps(TINT_PRESETS)))
+            .replace("__RO_PREFS__", json.dumps(p)))
 
 
 def make_handler(pet):

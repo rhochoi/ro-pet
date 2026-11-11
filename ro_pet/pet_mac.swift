@@ -1,22 +1,24 @@
 import AppKit
 import CoreGraphics
 import Darwin
+import ServiceManagement
 import WebKit
-
+#if canImport(Sparkle)
+import Sparkle
+#endif
+final class PetWebView: WKWebView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
 final class FloatingPetPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
-
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         return frameRect
     }
 }
-
-
 final class FlippedView: NSView {
     override var isFlipped: Bool { true }
 }
-
 enum NativeGlass {
     private final class Geometry: NSObject {
         let frame: NSRect
@@ -27,18 +29,14 @@ enum NativeGlass {
         }
     }
     private static let geometry = NSMapTable<NSView, Geometry>.weakToStrongObjects()
-
     static var forceBlur = false
-
     static var activeForced = false
-
     static func kind(active: Bool) -> String {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), !forceBlur, active || activeForced { return "liquid" }
         #endif
         return "blur"
     }
-
     static func forceActiveAppearance(_ window: NSWindow) {
         let sel = NSSelectorFromString("_setForceMainAppearance:")
         guard window.responds(to: sel), let m = class_getInstanceMethod(type(of: window), sel) else { return }
@@ -46,7 +44,6 @@ enum NativeGlass {
         unsafeBitCast(method_getImplementation(m), to: SetBool.self)(window, sel, true)
         activeForced = true
     }
-
     static func make(_ kind: String) -> NSView {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), kind == "liquid" { return NSGlassEffectView() }
@@ -56,7 +53,6 @@ enum NativeGlass {
         v.state = .active
         return v
     }
-
     static func shape(_ v: NSView, frame: NSRect, rotation: CGFloat, alpha: CGFloat, dark: Bool, tint: NSColor?) {
         let appearance: NSAppearance.Name = dark ? .darkAqua : .aqua
         if v.appearance?.name != appearance { v.appearance = NSAppearance(named: appearance) }
@@ -73,7 +69,7 @@ enum NativeGlass {
         if #available(macOS 26.0, *), let g = v as? NSGlassEffectView {
             if g.style != .clear { g.style = .clear }
             if g.cornerRadius != frame.height / 2 { g.cornerRadius = frame.height / 2 }
-            let color = tint?.withAlphaComponent(0.32) ?? (dark ? NSColor.black.withAlphaComponent(0.28) : nil)
+            let color = tint?.withAlphaComponent(0.46) ?? (dark ? NSColor.black.withAlphaComponent(0.28) : nil)
             if g.tintColor != color { g.tintColor = color }
             return
         }
@@ -83,7 +79,6 @@ enum NativeGlass {
         if e.material != material { e.material = material }
         if sizeChanged || e.maskImage == nil { e.maskImage = pillMask(frame.size) }
     }
-
     static func pillMask(_ size: NSSize) -> NSImage {
         NSImage(size: size, flipped: false) { rect in
             NSColor.black.setFill()
@@ -91,7 +86,6 @@ enum NativeGlass {
             return true
         }
     }
-
     static func tintColor(_ hex: String?) -> NSColor? {
         guard let hex = hex, hex.range(of: "^#[0-9A-Fa-f]{6}$", options: .regularExpression) != nil,
               let rgb = UInt32(hex.dropFirst(), radix: 16) else { return nil }
@@ -99,28 +93,22 @@ enum NativeGlass {
                        green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1)
     }
 }
-
-
 struct CPUTicks: Equatable {
     var user: UInt32
     var system: UInt32
     var idle: UInt32
     var nice: UInt32
-
     var busy: UInt32 { user &+ system &+ nice }
     var total: UInt32 { busy &+ idle }
-
     init(user: UInt32, system: UInt32, idle: UInt32, nice: UInt32) {
         self.user = user
         self.system = system
         self.idle = idle
         self.nice = nice
     }
-
     init(machTicks t: (UInt32, UInt32, UInt32, UInt32)) {
         self.init(user: t.0, system: t.1, idle: t.2, nice: t.3)
     }
-
     static func read() -> CPUTicks? {
         var info = host_cpu_load_info()
         var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
@@ -133,17 +121,14 @@ struct CPUTicks: Equatable {
         return CPUTicks(machTicks: info.cpu_ticks)
     }
 }
-
 func cpuPercent(from prev: CPUTicks, to cur: CPUTicks) -> Double? {
     let total = cur.total &- prev.total
     guard total > 0 else { return nil }
     let busy = cur.busy &- prev.busy
     return min(100, Double(busy) / Double(total) * 100)
 }
-
 enum Gait: Int, CaseIterable {
     case calm = 0, walk, busy, hot
-
     static let edges: [Double] = [20, 50, 80]
     var period: Double { [3.2, 1.6, 0.8, 0.4][rawValue] }
     var rate: Double { 3.2 / period }
@@ -151,30 +136,23 @@ enum Gait: Int, CaseIterable {
     var label: String { ["Relaxed", "Steady", "Busy", "Overheating"][rawValue] }
     var jumpHeight: Double { [1.0, 1.6, 2.2, 1.0][rawValue] }
     var squash: Double { [0.08, 0.12, 0.18, 0.10][rawValue] }
-
     func capped(lowPower: Bool) -> Gait {
         lowPower ? Gait(rawValue: min(rawValue, Gait.walk.rawValue))! : self
     }
 }
-
-
 enum JumpFrame: Int {
     case crouch = 0, rise, apex
 }
-
 let jumpSchedule: [(at: Double, frame: JumpFrame)] = [
     (0.00, .crouch), (0.30, .rise), (0.45, .apex), (0.60, .rise), (0.75, .crouch),
 ]
-
 let iconCanvas: CGFloat = 18
-
 struct IconPose {
     var head: CGRect
     var body: CGRect
     var base: CGRect
     var narrowEyes: Bool
 }
-
 func iconPose(_ frame: JumpFrame?, gait: Gait) -> IconPose {
     let s = CGFloat(gait.squash), h = CGFloat(gait.jumpHeight)
     var k: CGFloat = 1, wk: CGFloat = 1
@@ -195,14 +173,12 @@ func iconPose(_ frame: JumpFrame?, gait: Gait) -> IconPose {
         narrowEyes: gait == .hot
     )
 }
-
 struct CPUSmoother {
     static let alpha = 0.3
     static let gap = 5.0
     private(set) var recent: [Double] = []
     private(set) var smoothed: Double? = nil
     private(set) var gait: Gait = .calm
-
     mutating func push(_ raw: Double) -> Gait {
         recent.append(raw)
         if recent.count > 3 { recent.removeFirst() }
@@ -217,20 +193,25 @@ struct CPUSmoother {
         }
         return gait
     }
-
     mutating func reset() {
         recent = []
         smoothed = nil
         gait = .calm
     }
 }
-
-
+let petSizeScales: [String: CGFloat] = ["small": 0.75, "medium": 1.0, "big": 1.3]
+let petBaseCompactSize = NSSize(width: 176, height: 168)
+func petCompactSize(_ name: String) -> NSSize {
+    let k = petSizeScales[name] ?? 1
+    return NSSize(width: (petBaseCompactSize.width * k).rounded(), height: (petBaseCompactSize.height * k).rounded())
+}
+func petResizeOrigin(frame: NSRect, newSize: NSSize) -> NSPoint {
+    NSPoint(x: frame.maxX - newSize.width, y: frame.minY)
+}
 enum PetMode: String {
     case desktop
     case menubar
 }
-
 final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
     private var panel: FloatingPetPanel!
     private var webView: WKWebView!
@@ -246,7 +227,12 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
     private var mode: PetMode = .desktop
     private var urlString: String = "http://127.0.0.1:8765/"
     private var wanderEnabled: Bool = false
-    private var lookPrefs = ["theme": "auto"]
+#if canImport(Sparkle)
+    private var updaterController: SPUStandardUpdaterController?
+#endif
+    private var lookPrefs = ["panel": "auto"]
+    private var pointerInside = false
+    private var originBeforeOpen: NSPoint?
     private var lookItems: [NSMenuItem] = []
     private var bubbleOpen: Bool = false
     private var placeTop: Bool = false
@@ -256,8 +242,9 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
     private var dragTimer: Timer?
     private var fallTimer: Timer?
     private var isDragging: Bool = false
-
-    private let compactSize = NSSize(width: 176, height: 168)
+    private var sizeName = "medium"
+    private var sizeItems: [NSMenuItem] = []
+    private var compactSize: NSSize { petCompactSize(sizeName) }
     private let edgeMargin: CGFloat = 6.0
     private let dockZone: CGFloat = 80.0
     private var toastPanel: NSPanel?
@@ -275,47 +262,96 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
     private var iconGait: Gait = .calm
     private var iconImages: [Int: NSImage] = [:]
     private var alertPanel: NSPanel?
-
+    private var talkItem: NSMenuItem!
+    private var loginItem: NSMenuItem?
+    private var matItems: [NSMenuItem] = []
+    private var materialName = ""
+    private var hitRects: [NSRect] = []
+    private var hitReady = false
+    private var previewHide: DispatchWorkItem?
     init(url: String, wander: Bool) {
         self.urlString = url
         self.wanderEnabled = wander
         super.init()
     }
-
+    private func setupPointerWatch() {
+        panel.acceptsMouseMovedEvents = true
+        NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in self?.forwardPointer() }
+        NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            guard let self = self, self.bubbleOpen else { return }
+            self.webView.evaluateJavaScript("window.toggleBubbleFromHost && window.toggleBubbleFromHost(false);", completionHandler: nil)
+        }
+        NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            self?.forwardPointer()
+            return event
+        }
+    }
+    private func forwardPointer() {
+        updateClickThrough()
+        let mouse = NSEvent.mouseLocation
+        let frame = panel.frame
+        guard panel.isVisible, frame.contains(mouse) else {
+            if pointerInside {
+                pointerInside = false
+                webView.evaluateJavaScript("window.onHostPointer && window.onHostPointer(null);", completionHandler: nil)
+            }
+            return
+        }
+        pointerInside = true
+        let x = mouse.x - frame.minX, y = frame.maxY - mouse.y
+        webView.evaluateJavaScript("window.onHostPointer && window.onHostPointer(\(x), \(y));", completionHandler: nil)
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         killOtherInstances()
         NSApp.setActivationPolicy(.accessory)
         mode = PetMode(rawValue: defaults.string(forKey: "ro.mode") ?? "") ?? .desktop
+        if let saved = defaults.string(forKey: "ro.size"), petSizeScales[saved] != nil { sizeName = saved }
         if wanderEnabled, defaults.object(forKey: "ro.wander") != nil {
             wanderEnabled = defaults.bool(forKey: "ro.wander")
         }
+#if canImport(Sparkle)
+        if Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil {
+            updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
+        }
+#endif
         setupStatusItem()
         setupFloatingPanel()
+        setupPointerWatch()
         setMode(mode)
         ensureIconVisible(announceSuccess: false)
         setupWanderTimer()
         setupCPUSampler()
         observeIconConditions()
     }
-
     private func killOtherInstances() {
         let myPid = ProcessInfo.processInfo.processIdentifier
         for app in NSWorkspace.shared.runningApplications {
             if app.processIdentifier != myPid,
-               let name = app.localizedName ?? app.executableURL?.lastPathComponent,
-               name.contains("ro-pet-host") {
+               app.executableURL?.lastPathComponent == "ro-pet-host" {
                 app.forceTerminate()
             }
         }
     }
-
+    private func bringPanelForward() {
+        panel.orderFrontRegardless()
+    }
+    private func updateClickThrough() {
+        guard let panel = panel else { return }
+        guard hitReady, !isDragging, panel.isVisible else {
+            if panel.ignoresMouseEvents { panel.ignoresMouseEvents = false }
+            return
+        }
+        let mouse = NSEvent.mouseLocation, frame = panel.frame
+        let point = NSPoint(x: mouse.x - frame.minX, y: frame.maxY - mouse.y)
+        let inside = hitRects.contains { $0.contains(point) }
+        if panel.ignoresMouseEvents == inside { panel.ignoresMouseEvents = !inside }
+    }
     private func currentVisibleFrame() -> NSRect {
         if let s = panel?.screen ?? NSScreen.main ?? NSScreen.screens.first {
             return s.visibleFrame
         }
         return NSRect(x: 0, y: 0, width: 1440, height: 900)
     }
-
     private func clampOrigin(_ origin: NSPoint, size: NSSize) -> NSPoint {
         let vf = currentVisibleFrame()
         let minX = vf.minX + edgeMargin
@@ -327,7 +363,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             y: min(max(origin.y, minY), maxY)
         )
     }
-
     private func currentPetOrigin() -> NSPoint {
         let f = panel.frame
         if !bubbleOpen {
@@ -337,15 +372,14 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         let y = placeTop ? (f.maxY - compactSize.height) : f.minY
         return NSPoint(x: x, y: y)
     }
-
     private func setBubbleState(_ open: Bool) {
         if bubbleOpen == open { return }
         let petPos = clampOrigin(currentPetOrigin(), size: compactSize)
         bubbleOpen = open
-
+        talkItem?.title = (open ? "Close panel" : "Open panel")
         if open {
             let vf = currentVisibleFrame()
-            let expandedSize = NSSize(width: 388, height: min(760, vf.height * 0.8))
+            let expandedSize = NSSize(width: 388, height: min(760, vf.height * 0.88))
             placeTop = (petPos.y + expandedSize.height > vf.maxY - edgeMargin)
             placeLeft = (petPos.x + compactSize.width - expandedSize.width < vf.minX + edgeMargin)
             webView.evaluateJavaScript(
@@ -355,18 +389,19 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             let rawX = placeLeft ? petPos.x : (petPos.x + compactSize.width - expandedSize.width)
             let rawY = placeTop ? (petPos.y + compactSize.height - expandedSize.height) : petPos.y
             let newOrigin = clampOrigin(NSPoint(x: rawX, y: rawY), size: expandedSize)
+            originBeforeOpen = petPos
             let newFrame = NSRect(origin: newOrigin, size: expandedSize)
             panel.setFrame(newFrame, display: true)
             webView.frame = NSRect(origin: .zero, size: expandedSize)
             refreshGlass()
-            NSApp.activate(ignoringOtherApps: true)
-            panel.makeKeyAndOrderFront(nil)
+            bringPanelForward()
         } else {
             webView.evaluateJavaScript(
                 "window.setBubblePlacement && window.setBubblePlacement(false, false);",
                 completionHandler: nil
             )
-            let newOrigin = clampOrigin(petPos, size: compactSize)
+            let newOrigin = clampOrigin(originBeforeOpen ?? petPos, size: compactSize)
+            originBeforeOpen = nil
             let newFrame = NSRect(origin: newOrigin, size: compactSize)
             panel.setFrame(newFrame, display: true)
             webView.frame = NSRect(origin: .zero, size: compactSize)
@@ -374,7 +409,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             revealPet()
         }
     }
-
     private func startNativeDrag(fromPet: Bool) {
         dragTimer?.invalidate()
         let startMouse = NSEvent.mouseLocation
@@ -385,7 +419,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         var inZone = false
         var lastProgress: CGFloat = 0
         isDragging = true
-
         if fromPet {
             NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
             webView.evaluateJavaScript(
@@ -393,7 +426,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
                 completionHandler: nil
             )
         }
-
         let timer = Timer(timeInterval: 0.008, repeats: true) { [weak self] timer in
             guard let self = self else {
                 timer.invalidate()
@@ -403,9 +435,9 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             let dx = curMouse.x - startMouse.x
             let dy = curMouse.y - startMouse.y
             tick += 1
-
             if hypot(dx, dy) > 8.0 {
                 moved = true
+                self.originBeforeOpen = nil
             }
             if moved {
                 let target = NSPoint(x: startOrigin.x + dx, y: startOrigin.y + dy)
@@ -463,13 +495,12 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         RunLoop.main.add(timer, forMode: .common)
         dragTimer = timer
     }
-
     private func startFall() -> CGFloat {
         let g: CGFloat = 2400
-        let maxT: CGFloat = 0.28
+        let maxFall: CGFloat = 24
         let floorY = currentVisibleFrame().minY + edgeMargin
         let startY = panel.frame.origin.y
-        let fall = min(max(0, startY - floorY), 0.5 * g * maxT * maxT)
+        let fall = min(max(0, startY - floorY), maxFall)
         if fall < 0.5 { return 0 }
         let duration = sqrt(2 * fall / g)
         let startX = panel.frame.origin.x
@@ -488,7 +519,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         }
         return fall
     }
-
     private func dockToMenubar(returnOrigin: NSPoint) {
         guard let iconFrame = statusItem.button?.window?.frame else {
             setMode(.menubar)
@@ -509,7 +539,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             self.ensureIconVisible(announceSuccess: true)
         })
     }
-
     private func ensureIconVisible(announceSuccess: Bool) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self = self, self.mode == .menubar,
@@ -524,7 +553,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             }
         }
     }
-
     private func bounceIcon() {
         guard let btn = statusItem.button else { return }
         btn.image = makeIcon(iconPose(.apex, gait: .walk))
@@ -532,7 +560,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             self?.statusItem.button?.image = self?.makeIcon(iconPose(nil, gait: .calm))
         }
     }
-
     private func showToast(_ title: String, _ detail: String) {
         toastPanel?.orderOut(nil)
         let label = NSTextField(labelWithAttributedString: {
@@ -551,7 +578,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         box.layer?.cornerRadius = 12
         label.frame.origin = NSPoint(x: 16, y: 11)
         box.addSubview(label)
-
         let vf = (statusItem.button?.window?.screen ?? NSScreen.main)?.visibleFrame ?? .zero
         let anchorX = statusItem.isVisible ? (statusItem.button?.window?.frame.midX ?? vf.midX) : vf.midX
         let x = min(max(anchorX - size.width / 2, vf.minX + 8), vf.maxX - size.width - 8)
@@ -570,7 +596,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             if self?.toastPanel === toast { self?.toastPanel = nil }
         }
     }
-
     private func makeIcon(_ pose: IconPose) -> NSImage {
         let img = NSImage(size: NSSize(width: iconCanvas, height: iconCanvas), flipped: true) { _ in
             let ink = NSColor(calibratedRed: 0x1A/255.0, green: 0x19/255.0, blue: 0x17/255.0, alpha: 1.0)
@@ -609,14 +634,12 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         img.isTemplate = true
         return img
     }
-
     private let statusAutosaveName = "ro.pet"
-
     private func pinStatusItemFirst() {
         UserDefaults.standard.set(1, forKey: "NSStatusItem Preferred Position \(statusAutosaveName)")
     }
-
     private func setupStatusItem() {
+        if statusItem == nil {
         pinStatusItemFirst()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.autosaveName = statusAutosaveName
@@ -627,13 +650,14 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             btn.image = makeIcon(iconPose(nil, gait: .calm))
             btn.toolTip = "ro — three layers, two eyes."
         }
+        }
+        lookItems = []; sizeItems = []; matItems = []
         let menu = NSMenu()
         menu.addItem(makeHeaderItem())
         menu.addItem(NSMenuItem.separator())
-        let talkItem = NSMenuItem(title: "Open panel", action: #selector(toggleBubble), keyEquivalent: "k")
+        talkItem = NSMenuItem(title: (bubbleOpen ? "Close panel" : "Open panel"), action: #selector(toggleBubble), keyEquivalent: "k")
         talkItem.target = self
         menu.addItem(talkItem)
-
         let previewMenu = NSMenu()
         let moods: [(String, String)] = [
             ("Idle", "idle"), ("Recording", "recording"), ("Focus", "focus"),
@@ -661,7 +685,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         }
         let previewRoot = NSMenuItem(title: "Preview expressions & motion", action: nil, keyEquivalent: "")
         previewRoot.submenu = previewMenu
-
         let matMenu = NSMenu()
         let materials: [(String, String)] = [
             ("Clay", "clay"), ("Glass", "glass")
@@ -670,16 +693,29 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             let item = NSMenuItem(title: title, action: #selector(selectMaterial(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = code
+            item.state = materialName == code ? .on : .off
+            matItems.append(item)
             matMenu.addItem(item)
         }
         let matRoot = NSMenuItem(title: "Material", action: nil, keyEquivalent: "")
         matRoot.submenu = matMenu
         menu.addItem(NSMenuItem.separator())
         menu.addItem(matRoot)
-
+        let sizeMenu = NSMenu()
+        for (title, code) in [("Small", "small"), ("Medium", "medium"), ("Big", "big")] {
+            let item = NSMenuItem(title: title, action: #selector(selectSize(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = code
+            item.state = sizeName == code ? .on : .off
+            sizeItems.append(item)
+            sizeMenu.addItem(item)
+        }
+        let sizeRoot = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
+        sizeRoot.submenu = sizeMenu
+        menu.addItem(sizeRoot)
         let lookMenu = NSMenu()
         let looks: [(String, [(String, String)])] = [
-            ("theme", [("Follow system", "auto"), ("Light", "ink"), ("Dark", "chalk")])
+            ("panel", [("System", "auto"), ("Light", "light"), ("Dark", "dark")])
         ]
         for (key, choices) in looks {
             for (label, value) in choices {
@@ -691,32 +727,40 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
                 lookMenu.addItem(item)
             }
         }
-        let lookRoot = NSMenuItem(title: "Panel appearance", action: nil, keyEquivalent: "")
+        let lookRoot = NSMenuItem(title: "Panel color", action: nil, keyEquivalent: "")
         lookRoot.submenu = lookMenu
         menu.addItem(lookRoot)
-
         wanderItem = NSMenuItem(title: "Wander", action: #selector(toggleWander), keyEquivalent: "w")
         wanderItem.target = self
         wanderItem.state = wanderEnabled ? .on : .off
         menu.addItem(wanderItem)
         menu.addItem(previewRoot)
-
-        modeItem = NSMenuItem(title: "", action: #selector(toggleMode), keyEquivalent: "")
+        modeItem = NSMenuItem(title: (mode == .menubar ? "Bring to desktop" : "Send to menu bar"), action: #selector(toggleMode), keyEquivalent: "")
         modeItem.target = self
         menu.addItem(modeItem)
-
         let resetItem = NSMenuItem(title: "Call to bottom right", action: #selector(resetPosition), keyEquivalent: "0")
         resetItem.target = self
         menu.addItem(resetItem)
-
+        if #available(macOS 13.0, *), Bundle.main.bundleURL.pathExtension == "app" {
+            let item = NSMenuItem(title: "Open at login", action: #selector(toggleLoginItem), keyEquivalent: "")
+            item.target = self
+            item.state = SMAppService.mainApp.status == .enabled ? .on : .off
+            loginItem = item
+            menu.addItem(item)
+        }
+#if canImport(Sparkle)
+        if let updaterController = updaterController {
+            let updateItem = NSMenuItem(title: "Check for updates…", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+            updateItem.target = updaterController
+            menu.addItem(updateItem)
+        }
+#endif
         menu.addItem(NSMenuItem.separator())
         let quitItem = NSMenuItem(title: "Quit ro pet", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
-
         mainMenu = menu
     }
-
     private func makeHeaderItem() -> NSMenuItem {
         headerTitle = NSTextField(labelWithString: "ro.bot")
         headerTitle.font = NSFont.boldSystemFont(ofSize: 13)
@@ -732,7 +776,16 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         item.view = view
         return item
     }
-
+    @objc private func toggleLoginItem() {
+        guard #available(macOS 13.0, *) else { return }
+        do {
+            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+            else { try SMAppService.mainApp.register() }
+        } catch {
+            showToast("Could not change the login setting", "Check System Settings › General › Login Items")
+        }
+        loginItem?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+    }
     @objc private func statusButtonPressed() {
         guard let event = NSApp.currentEvent, let btn = statusItem.button else { return }
         if event.type == .rightMouseDown {
@@ -761,27 +814,23 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         RunLoop.main.add(timer, forMode: .common)
         iconTimer = timer
     }
-
     private func showStatusMenu() {
         guard let btn = statusItem.button, let win = btn.window else { return }
         btn.highlight(true)
         mainMenu.popUp(positioning: nil, at: NSPoint(x: win.frame.minX, y: win.frame.minY - 4), in: nil)
         btn.highlight(false)
     }
-
     private func popOut(at mouse: NSPoint) {
         savedDesktopOrigin = nil
         panel.setFrameOrigin(NSPoint(x: mouse.x - compactSize.width / 2, y: mouse.y - compactSize.height + 40))
         setMode(.desktop)
         startNativeDrag(fromPet: true)
     }
-
     private func menubarAnchorOrigin() -> NSPoint {
         let vf = currentVisibleFrame()
         let midX = statusItem.button?.window?.frame.midX ?? (vf.maxX - compactSize.width / 2)
         return NSPoint(x: midX - compactSize.width / 2, y: vf.maxY - compactSize.height)
     }
-
     private func setMode(_ next: PetMode) {
         if next != mode && bubbleOpen {
             webView.evaluateJavaScript("window.toggleBubbleFromHost && window.toggleBubbleFromHost(false);", completionHandler: nil)
@@ -791,19 +840,19 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             panel.setFrameOrigin(origin)
             savedDesktopOrigin = nil
         }
+        if next == .desktop { fitPanelToCompactSize() }
         mode = next
         defaults.set(next.rawValue, forKey: "ro.mode")
         if next == .menubar { pinStatusItemFirst() }
         statusItem.isVisible = (next == .menubar)
         DispatchQueue.main.async { [weak self] in self?.updateIconAnimation() }
-        modeItem.title = (next == .menubar) ? "Bring to desktop" : "Send to menu bar"
+        modeItem.title = (next == .menubar ? "Bring to desktop" : "Send to menu bar")
         if next == .menubar {
             panel.orderOut(nil)
         } else {
             panel.orderFrontRegardless()
         }
     }
-
     private func revealPet() {
         if mode == .desktop || bubbleOpen {
             panel.orderFrontRegardless()
@@ -811,11 +860,25 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             panel.orderOut(nil)
         }
     }
-
+    private func revealPetForPreview(seconds: TimeInterval) {
+        previewHide?.cancel()
+        previewHide = nil
+        guard mode == .menubar, !bubbleOpen else { revealPet(); return }
+        savedDesktopOrigin = savedDesktopOrigin ?? panel.frame.origin
+        fitPanelToCompactSize()
+        panel.setFrameOrigin(menubarAnchorOrigin())
+        panel.orderFrontRegardless()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.previewHide = nil
+            self.revealPet()
+        }
+        previewHide = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
     @objc private func toggleMode() {
         setMode(mode == .desktop ? .menubar : .desktop)
     }
-
     private func setupFloatingPanel() {
         let vf = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         var origin = NSPoint(x: vf.maxX - compactSize.width - 20, y: vf.minY + 18)
@@ -827,7 +890,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             }
         }
         let rect = NSRect(origin: origin, size: compactSize)
-
         panel = FloatingPetPanel(
             contentRect: rect,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -840,14 +902,12 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces]
         panel.isMovableByWindowBackground = false
-
         let config = WKWebViewConfiguration()
         config.userContentController.add(self, name: "roHost")
-        webView = WKWebView(frame: NSRect(origin: .zero, size: compactSize), configuration: config)
+        webView = PetWebView(frame: NSRect(origin: .zero, size: compactSize), configuration: config)
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
         webView.autoresizingMask = [.width, .height]
-
         NativeGlass.forceBlur = defaults.string(forKey: "ro.glass") == "blur"
         if !NativeGlass.forceBlur { NativeGlass.forceActiveAppearance(panel) }
         let container = FlippedView(frame: NSRect(origin: .zero, size: compactSize))
@@ -866,7 +926,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             webView.load(URLRequest(url: url))
         }
     }
-
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         let home = URL(string: urlString)
@@ -874,17 +933,15 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         let sameOrigin = target?.scheme == home?.scheme && target?.host == home?.host && target?.port == home?.port
         decisionHandler(sameOrigin || target?.absoluteString == "about:blank" ? .allow : .cancel)
     }
-
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.evaluateJavaScript("window.setWanderState && window.setWanderState(\(wanderEnabled));", completionHandler: nil)
+        webView.evaluateJavaScript("window.setPetSize && window.setPetSize('\(sizeName)');", completionHandler: nil)
         webView.evaluateJavaScript("window.setNativeGlass && window.setNativeGlass('\(glassKind)');", completionHandler: nil)
     }
-
     private func refreshGlass() {
         glassLayer.isHidden = true
         webView.evaluateJavaScript("window.setNativeGlass && window.setNativeGlass('\(glassKind)');", completionHandler: nil)
     }
-
     private func updateGlass(on: Bool, rects: [[Double]], dark: Bool, tint: String?) {
         guard on, rects.count == 3, rects.allSatisfy({ $0.count == 6 }) else {
             glassLayer.isHidden = true
@@ -911,7 +968,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         CATransaction.commit()
         glassLayer.isHidden = false
     }
-
     private func setupWanderTimer() {
         wanderTimer = Timer.scheduledTimer(withTimeInterval: 3.2, repeats: true) { [weak self] _ in
             guard let self = self, self.mode == .desktop, self.wanderEnabled, !self.bubbleOpen, !self.isDragging else { return }
@@ -932,7 +988,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             self.panel.setFrame(frame, display: true, animate: true)
         }
     }
-
     private func setupCPUSampler() {
         let nc = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
@@ -943,7 +998,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         }
         startCPUSampler()
     }
-
     private func startCPUSampler() {
         stopCPUSampler()
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in self?.sampleCPU() }
@@ -951,14 +1005,12 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         RunLoop.main.add(timer, forMode: .common)
         cpuTimer = timer
     }
-
     private func stopCPUSampler() {
         cpuTimer?.invalidate()
         cpuTimer = nil
         lastTicks = nil
         smoother.reset()
     }
-
     private func sampleCPU() {
         guard let cur = CPUTicks.read() else { return }
         defer { lastTicks = cur }
@@ -971,8 +1023,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         let shown = Int((smoother.smoothed ?? pct).rounded())
         headerDetail.stringValue = "CPU \(shown)% · \(gait.label)"
     }
-
-
     private func updateIconAnimation() {
         let visible = statusItem.button?.window?.occlusionState.contains(.visible) ?? false
         let animate = mode == .menubar && visible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -989,11 +1039,9 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             showJumpStep()
         }
     }
-
     private func targetIconGait() -> Gait {
         gait.capped(lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled)
     }
-
     private func showJumpStep() {
         let step = jumpSchedule[jumpStep]
         statusItem.button?.image = jumpImage(step.frame, gait: iconGait)
@@ -1011,7 +1059,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         RunLoop.main.add(timer, forMode: .common)
         iconJumpTimer = timer
     }
-
     private func jumpImage(_ frame: JumpFrame, gait g: Gait) -> NSImage {
         let key = g.rawValue * 3 + frame.rawValue
         if let img = iconImages[key] { return img }
@@ -1019,7 +1066,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         iconImages[key] = img
         return img
     }
-
     private func observeIconConditions() {
         let refresh: (Notification) -> Void = { [weak self] _ in self?.updateIconAnimation() }
         NotificationCenter.default.addObserver(forName: Notification.Name.NSProcessInfoPowerStateDidChange,
@@ -1032,47 +1078,66 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             self.updateIconAnimation()
         }
     }
-
     @objc private func toggleBubble() {
         if mode == .menubar && !bubbleOpen {
             savedDesktopOrigin = savedDesktopOrigin ?? panel.frame.origin
             panel.setFrameOrigin(menubarAnchorOrigin())
         }
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
+        bringPanelForward()
         webView.evaluateJavaScript("window.toggleBubbleFromHost && window.toggleBubbleFromHost();", completionHandler: nil)
     }
-
     @objc private func previewMood(_ sender: NSMenuItem) {
         guard let code = sender.representedObject as? String else { return }
-        revealPet()
+        revealPetForPreview(seconds: 10)
         webView.evaluateJavaScript("window.setMoodPreview && window.setMoodPreview('\(code)', 10000);", completionHandler: nil)
     }
-
     @objc private func triggerActionFromMenu(_ sender: NSMenuItem) {
         guard let code = sender.representedObject as? String else { return }
-        revealPet()
+        revealPetForPreview(seconds: 5)
         webView.evaluateJavaScript("window.triggerAction && window.triggerAction('\(code)', 4500);", completionHandler: nil)
     }
-
     @objc private func selectMaterial(_ sender: NSMenuItem) {
         guard let code = sender.representedObject as? String else { return }
         revealPet()
         webView.evaluateJavaScript("window.setMaterialFromHost && window.setMaterialFromHost('\(code)');", completionHandler: nil)
     }
-
     @objc private func selectLook(_ sender: NSMenuItem) {
         guard let choice = sender.representedObject as? [String], choice.count == 2 else { return }
         webView.evaluateJavaScript("window.setLookPref && window.setLookPref('\(choice[0])', '\(choice[1])');", completionHandler: nil)
     }
-
+    @objc private func selectSize(_ sender: NSMenuItem) {
+        guard let code = sender.representedObject as? String else { return }
+        applySize(code)
+    }
+    private func applySize(_ code: String) {
+        guard petSizeScales[code] != nil else { return }
+        sizeName = code
+        defaults.set(code, forKey: "ro.size")
+        for item in sizeItems { item.state = (item.representedObject as? String) == code ? .on : .off }
+        webView?.evaluateJavaScript("window.setPetSize && window.setPetSize('\(code)');", completionHandler: nil)
+        guard panel != nil else { return }
+        if bubbleOpen {
+            originBeforeOpen = nil
+            return
+        }
+        guard mode == .desktop else { return }
+        fitPanelToCompactSize()
+        savePosition(delay: 0.2)
+    }
+    private func fitPanelToCompactSize() {
+        let size = compactSize
+        guard !bubbleOpen, panel.frame.size != size else { return }
+        let origin = clampOrigin(petResizeOrigin(frame: panel.frame, newSize: size), size: size)
+        panel.setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
+        webView.frame = NSRect(origin: .zero, size: size)
+        refreshGlass()
+    }
     @objc private func toggleWander() {
         wanderEnabled.toggle()
         wanderItem.state = wanderEnabled ? .on : .off
         defaults.set(wanderEnabled, forKey: "ro.wander")
         webView?.evaluateJavaScript("window.setWanderState && window.setWanderState(\(wanderEnabled));", completionHandler: nil)
     }
-
     @objc private func resetPosition() {
         if mode == .menubar {
             setMode(.desktop)
@@ -1086,14 +1151,12 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         panel.setFrame(NSRect(origin: origin, size: compactSize), display: true, animate: true)
         savePosition(delay: 0.4)
     }
-
     private func menuSection(_ title: String) -> NSMenuItem {
         if #available(macOS 14.0, *) { return NSMenuItem.sectionHeader(title: title) }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
         return item
     }
-
     private func savePosition(delay: TimeInterval) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self = self, self.mode == .desktop else { return }
@@ -1102,11 +1165,9 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             self.defaults.set(Double(o.y), forKey: "ro.pos.y")
         }
     }
-
     @objc private func quitApp() {
         NSApp.terminate(nil)
     }
-
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let dict = message.body as? [String: Any],
               let type = dict["type"] as? String else { return }
@@ -1133,10 +1194,22 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
                 guard let choice = item.representedObject as? [String], choice.count == 2 else { continue }
                 item.state = lookPrefs[choice[0]] == choice[1] ? .on : .off
             }
+        } else if type == "prefs" {
+            if let material = dict["material"] as? String {
+                materialName = material
+                for item in matItems { item.state = (item.representedObject as? String) == material ? .on : .off }
+            }
+        } else if type == "hit" {
+            let rects = (dict["rects"] as? [[NSNumber]])?.map { $0.map { CGFloat($0.doubleValue) } } ?? []
+            hitRects = rects.filter { $0.count == 4 }.map { NSRect(x: $0[0], y: $0[1], width: $0[2], height: $0[3]) }
+            hitReady = !hitRects.isEmpty
+            updateClickThrough()
         } else if type == "glass" {
             let rects = (dict["rects"] as? [[NSNumber]])?.map { $0.map { $0.doubleValue } } ?? []
             updateGlass(on: (dict["on"] as? Bool) ?? false, rects: rects,
                         dark: (dict["dark"] as? Bool) ?? false, tint: dict["tint"] as? String)
+        } else if type == "size" {
+            if let code = dict["size"] as? String { applySize(code) }
         } else if type == "toggleWander" {
             let enabled = (dict["enabled"] as? Bool) ?? !wanderEnabled
             wanderEnabled = enabled
@@ -1145,7 +1218,14 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         }
     }
 }
-
+#if canImport(Sparkle)
+extension PetAppDelegate: SPUUpdaterDelegate {
+    func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock immediateInstallHandler: @escaping () -> Void) -> Bool {
+        immediateInstallHandler()
+        return true
+    }
+}
+#endif
 var urlArg = "http://127.0.0.1:8765/"
 var wanderArg = false
 let args = CommandLine.arguments
@@ -1161,7 +1241,6 @@ while i < args.count {
         i += 1
     }
 }
-
 let app = NSApplication.shared
 let delegate = PetAppDelegate(url: urlArg, wander: wanderArg)
 app.delegate = delegate
