@@ -86,7 +86,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.signing.outputs.signed }}
         run: |
-          notes="Apple Silicon only. Drag ro-pet to Applications."
+          notes="Apple Silicon only. Drag ro to Applications."
           [ "$SIGNED" = "true" ] || notes="$notes This build is not notarized: see the README for the first-launch warning."
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             # The release already exists (e.g. created in the web UI): keep its title and notes, add the DMG.
