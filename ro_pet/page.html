@@ -95,7 +95,8 @@ body.place-left .stage {
     transform-origin: bottom right;
     position: relative;
     
-    height: calc(100vh - 158px);
+    /* pet height (18px + 83.6px) * scale + caption 22px + margins 34px; the panel no longer runs under a Big pet */
+    height: calc(100vh - 57px - 102px * var(--pet-scale, 1));
     min-height: 240px;
     flex: 0 0 auto;
     box-sizing: border-box;
@@ -813,7 +814,7 @@ kbd { font: inherit; font-weight: 800; background: var(--panel-soft); border-rad
         }
 }
 .peek-only { display: none; }
-body.edition-peek .bubble { height: auto; min-height: 0; max-height: calc(100vh - 158px); padding-bottom: 4px; }
+body.edition-peek .bubble { height: auto; min-height: 0; max-height: calc(100vh - 57px - 102px * var(--pet-scale, 1)); padding-bottom: 4px; }
 body.edition-peek .peek-only { display: flex; }
 .preview-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .preview-chips .opt-btn { height: var(--control-sm); padding: 0 8px; min-width: 0; font-weight: 400; }
@@ -915,6 +916,9 @@ body.edition-peek .peek-only { display: flex; }
 
 <script>
 const TOKEN = "__RO_TOKEN__";
+// Inside the Mac app (WKWebView)? Declared first: top-level code below reads it, and reading it before
+// the declaration would stop the whole script.
+const isNativeHost = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.roHost);
 const MOOD_META = {
   idle:      { label: "Idle",      caption: "Ro, as usual." },
   recording: { label: "Recording", caption: "Looks down." },
@@ -978,7 +982,7 @@ let systemDark = !!(window.matchMedia && window.matchMedia("(prefers-color-schem
 
 if (document.body.classList.contains("edition-peek")) {
   const chip = (box, key, label, title, fn) => {
-    const btn = h("button", { class: "opt-btn", type: "button", text: label, title,
+    const btn = h("button", { class: "opt-btn", type: "button", text: label, "aria-label": label, "aria-description": title, title,
       onclick: (e) => { e.stopPropagation(); fn(); setTimeout(syncPreviewChips); } });
     btn.dataset.preview = key;
     box.append(btn);
@@ -1050,7 +1054,10 @@ window.setLookPref = function(key, value) {
   return savePrefs({ [key]: value });
 };
 
-const savedPrefs = { material: materialMode, color: colorMode, panel: panelMode };
+const savedPrefs = {
+  material: materialMode, color: colorMode, panel: panelMode,
+  size: ["small", "medium", "big"].includes(INITIAL_PREFS.size) ? INITIAL_PREFS.size : "medium",
+};
 async function savePrefs(changes) {
   let r = null;
   try { r = await apiPost("/api/prefs", changes); } catch (err) {}
@@ -1078,6 +1085,7 @@ window.setPetSize = function(name) {
   });
   return true;
 };
+if (!isNativeHost && PET_SCALES[INITIAL_PREFS.size]) window.setPetSize(INITIAL_PREFS.size);
 document.querySelectorAll(".size-opt").forEach(btn => {
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1416,7 +1424,6 @@ setInterval(() => {
   }
 }, 16000);
 
-const isNativeHost = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.roHost);
 
 var nativeGlassKind = "";
 var nativeGlassSent;
