@@ -102,6 +102,7 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export RO_PET_HOST="$DIR/MacOS/ro-pet-host"
 export PYTHONPATH="$DIR/Resources/lib"
 export PYTHONNOUSERSITE=1
+export PYTHONSAFEPATH=1  # never import from the current folder (a terminal launch from a folder with ro_pet/ would run that code)
 export PYTHONDONTWRITEBYTECODE=1  # never write files inside the signed bundle
 export PYTHONUNBUFFERED=1
 umask 077

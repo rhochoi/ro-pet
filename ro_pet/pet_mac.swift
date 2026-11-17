@@ -588,6 +588,7 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         toast.hasShadow = true
         toast.level = .statusBar
         toast.ignoresMouseEvents = true
+        toast.collectionBehavior = [.canJoinAllSpaces, .stationary, .transient]
         toast.contentView = box
         toast.orderFrontRegardless()
         toastPanel = toast
@@ -820,6 +821,14 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         mainMenu.popUp(positioning: nil, at: NSPoint(x: win.frame.minX, y: win.frame.minY - 4), in: nil)
         btn.highlight(false)
     }
+    /// Right-click on the pet sits near the bottom of the screen; open the menu upward when it would not fit below,
+    /// so Quit and Check for updates are visible without scrolling.
+    private func popUpMainMenu(at p: NSPoint) {
+        let h = mainMenu.size.height
+        let floor = (NSScreen.screens.first { $0.frame.contains(p) } ?? NSScreen.main)?.visibleFrame.minY ?? 0
+        let y = (p.y - h < floor) ? p.y + h : p.y
+        mainMenu.popUp(positioning: nil, at: NSPoint(x: p.x, y: y), in: nil)
+    }
     private func popOut(at mouse: NSPoint) {
         savedDesktopOrigin = nil
         panel.setFrameOrigin(NSPoint(x: mouse.x - compactSize.width / 2, y: mouse.y - compactSize.height + 40))
@@ -900,7 +909,8 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces]
+        // .stationary: Show Desktop / Exposé leave the pet in place instead of sweeping it away with the app windows
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         panel.isMovableByWindowBackground = false
         let config = WKWebViewConfiguration()
         config.userContentController.add(self, name: "roHost")
@@ -1180,7 +1190,7 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             let target = NSPoint(x: panel.frame.origin.x + dx, y: panel.frame.origin.y - dy)
             panel.setFrameOrigin(clampOrigin(target, size: panel.frame.size))
         } else if type == "menu" {
-            mainMenu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+            popUpMainMenu(at: NSEvent.mouseLocation)
         } else if type == "status" {
         } else if type == "bubble" {
             let open = (dict["open"] as? Bool) ?? false
