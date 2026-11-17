@@ -42,6 +42,16 @@ class ServerTest(unittest.TestCase):
         html = server.render_html("t", {})
         self.assertEqual(sorted(set(re.findall(r"/api/[a-z_/]+", html))), ["/api/prefs", "/api/state"])
 
+    def test_size_is_a_saved_setting(self):
+        status, body = self.call("/api/prefs", {"size": "big"})
+        self.assertEqual((status, body["prefs"]["size"]), (200, "big"))
+        self.assertFalse(self.call("/api/prefs", {"size": "huge"})[1]["ok"])
+
+    def test_native_host_flag_is_declared_before_first_use(self):
+        # reading a const before its declaration stops the whole page script
+        page = server.PAGE.read_text(encoding="utf-8")
+        self.assertEqual(page.index("isNativeHost"), page.index("const isNativeHost") + len("const "))
+
     def test_token_required(self):
         self.assertEqual(self.call("/api/state", token=False)[0], 403)
         self.assertEqual(self.call("/api/prefs", {"material": "glass"}, token=False)[0], 403)

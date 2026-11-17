@@ -21,6 +21,7 @@ PREF_CHOICES = {
     "material": ("clay", "glass"),
     "color": ("auto", "light", "dark", "orange"),
     "panel": ("auto", "light", "dark"),
+    "size": ("small", "medium", "big"),
 }
 MAX_ACTION_SEC = 60.0
 STATE_WAIT_TIMEOUT = 20.0
