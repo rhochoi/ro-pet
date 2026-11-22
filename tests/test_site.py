@@ -2,6 +2,9 @@
 import functools
 import http.server
 import re
+import shutil
+import subprocess
+import sys
 import threading
 import unittest
 from html.parser import HTMLParser
@@ -410,6 +413,113 @@ console.log(JSON.stringify({
         self.assertLessEqual(out["fileCount"], 25)
         self.assertLessEqual(out["maxLatencyMs"], 100.0)
         self.assertEqual(out["restored"], out["moved"] + out["held"])
+
+    @unittest.skipUnless(sys.platform == "darwin" and shutil.which("swift"), "macOS swift/WKWebView 필요")
+    def test_webkit_zero_horizontal_scroll_and_live_dom_interactions(self):
+        swift_code = r'''
+import AppKit
+import Foundation
+import WebKit
+
+final class NavDel: NSObject, WKNavigationDelegate {
+    var done = false
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { done = true }
+}
+
+let app = NSApplication.shared
+app.setActivationPolicy(.prohibited)
+let siteDir = URL(fileURLWithPath: CommandLine.arguments[1])
+let pages = ["index.html", "pro/index.html", "thanks/index.html", "license/index.html", "privacy/index.html", "terms/index.html", "refund/index.html"]
+let widths: [CGFloat] = [375, 1280]
+var failures: [String] = []
+
+for page in pages {
+    for w in widths {
+        let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: w, height: 900))
+        let del = NavDel()
+        wv.navigationDelegate = del
+        wv.loadFileURL(siteDir.appendingPathComponent(page), allowingReadAccessTo: siteDir)
+        let deadline = Date().addingTimeInterval(6.0)
+        while !del.done && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.015))
+        }
+        let settle = Date().addingTimeInterval(0.08)
+        while Date() < settle {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.015))
+        }
+        var evalDone = false
+        var jsScript = "({ overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth) })"
+        if page == "index.html" && w == 1280 {
+            jsScript = """
+            (() => {
+              document.querySelector('[data-wp-mat="glass"]').click();
+              document.querySelector('[data-wp-color="orange"]').click();
+              document.getElementById('webPetWrap').click();
+              const wrap = document.getElementById('webPetWrap');
+              return {
+                overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+                mat: wrap.getAttribute('data-material'),
+                color: wrap.getAttribute('data-color'),
+                action: wrap.getAttribute('data-action')
+              };
+            })()
+            """
+        } else if page == "pro/index.html" && w == 1280 {
+            jsScript = """
+            (() => {
+              const inp = document.getElementById('sandboxSearchInput');
+              inp.value = 'whiteboard OCR';
+              inp.dispatchEvent(new Event('input', { bubbles: true }));
+              const resText = document.getElementById('sandboxResults').textContent;
+              document.getElementById('sandboxTabTidy').click();
+              document.getElementById('sandboxApproveBtn').click();
+              const afterApprove = document.getElementById('sandboxTidyStatus').textContent;
+              document.getElementById('sandboxUndoBtn').click();
+              const afterUndo = document.getElementById('sandboxTidyStatus').textContent;
+              return {
+                overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+                hasOcrHit: resText.includes('IMG_4092_whiteboard_scan.png'),
+                committed: afterApprove.includes('Journal V2 committed'),
+                undone: afterUndo.includes('Undone')
+              };
+            })()
+            """
+        }
+        wv.evaluateJavaScript(jsScript) { res, err in
+            if let dict = res as? [String: Any] {
+                let ov = (dict["overflow"] as? Int) ?? 999
+                if ov > 0 { failures.append("\(page)@\(Int(w))px overflow=\(ov)") }
+                if page == "index.html" && w == 1280 {
+                    if (dict["mat"] as? String) != "glass" || (dict["color"] as? String) != "orange" || (dict["action"] as? String) != "press" {
+                        failures.append("index.html interaction mismatch: \(dict)")
+                    }
+                }
+                if page == "pro/index.html" && w == 1280 {
+                    if (dict["hasOcrHit"] as? Bool) != true || (dict["committed"] as? Bool) != true || (dict["undone"] as? Bool) != true {
+                        failures.append("pro/index.html sandbox mismatch: \(dict)")
+                    }
+                }
+            } else {
+                failures.append("\(page)@\(Int(w))px eval error: \(String(describing: err))")
+            }
+            evalDone = true
+        }
+        let evDeadline = Date().addingTimeInterval(3.0)
+        while !evalDone && Date() < evDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.015))
+        }
+    }
+}
+if failures.isEmpty {
+    print("WEBKIT_OK")
+} else {
+    print("WEBKIT_FAIL: " + failures.joined(separator: "; "))
+    exit(1)
+}
+'''
+        r = subprocess.run(["swift", "-e", swift_code, str(SITE)], capture_output=True, text=True, timeout=45)
+        self.assertEqual(r.returncode, 0, f"WebKit validation failed:\nstdout={r.stdout}\nstderr={r.stderr}")
+        self.assertIn("WEBKIT_OK", r.stdout)
 
 
 @unittest.skipUnless(sync_playwright, "playwright 필요")

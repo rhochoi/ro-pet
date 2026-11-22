@@ -160,6 +160,8 @@ class SeekWatch:
 # ---- 풀린 압축 원본 & 중복 다운로드 (읽기 전용) ----
 ARCHIVE_EXTS = (".zip",)
 REVIEW_KEYWORDS = ("계약", "영수증", "세금", "급여", "연봉", "invoice", "contract", "receipt", "tax", "payroll")
+DUP_MAX_BYTES = 100 * 1024 * 1024  # 백그라운드 중복 감지는 100MB 이하 파일만 해시한다
+DUP_MAX_FILES = 200
 
 
 def unpacked_archives(downloads="~/Downloads", now=None):
@@ -205,12 +207,14 @@ def duplicate_downloads(downloads="~/Downloads", now=None):
             st = e.stat(follow_symlinks=False)
         except OSError:
             continue
-        if st.st_size <= 0 or fsguard.is_dataless(p, st) or fsguard.is_lock_file(p.name) or now - st.st_mtime < INSTALL_SETTLE:
+        if st.st_size <= 0 or st.st_size > DUP_MAX_BYTES or fsguard.is_dataless(p, st) or fsguard.is_lock_file(p.name) or now - st.st_mtime < INSTALL_SETTLE:
             continue
         lower = p.name.casefold()
         if any(k in lower for k in REVIEW_KEYWORDS):
             continue
         files.append((p, st))
+        if len(files) >= DUP_MAX_FILES:
+            break
     out = []
     for keeper, dups, _sha in detect.duplicate_groups(files):
         for dup, dst in dups:

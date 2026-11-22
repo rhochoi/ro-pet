@@ -239,6 +239,34 @@ class IconOpticsTest(unittest.TestCase):
                 }
                 self.assertTrue(expected.issubset({p.name for p in iconset.iterdir()}))
 
+    def test_menubar_template_icon_eye_optics_at_1x_and_2x(self):
+        import math
+        import re
+
+        swift = (ROOT / "ro/pet_mac.swift").read_text(encoding="utf-8")
+        self.assertIn("let er = min(e.width / 2, e.height / 2)", swift)
+        matches = re.findall(
+            r"NSRect\(x:\s*hd\.minX\s*\+\s*([0-9.]+),\s*y:\s*hd\.minY\s*\+\s*hd\.height\s*\*\s*([0-9.]+),\s*width:\s*([0-9.]+),\s*height:\s*hd\.height\s*\*\s*([0-9.]+)\)",
+            swift,
+        )
+        self.assertEqual(len(matches), 2, f"pet_mac.swift makeIcon 기본 눈 2개 정의가 필요합니다: {matches}")
+        head_h = 5.0
+        for px in (1.0, 2.0):
+            snapped = []
+            for x_off, y_k, w_pt, h_k in matches:
+                raw_w = float(w_pt)
+                raw_h = head_h * float(h_k)
+                w = max(1.0 / px, round(raw_w * px) / px)
+                h = max(1.0 / px, math.floor(raw_h * px) / px)
+                snapped.append((w * px, h * px, h / w))
+            if px == 2.0:
+                for w_px, h_px, ratio in snapped:
+                    self.assertGreaterEqual(ratio, 1.15, f"2x 메뉴바 아이콘 눈 종횡비 과소: {ratio:.3f}")
+                    self.assertLessEqual(ratio, 1.55, f"2x 메뉴바 아이콘 눈 종횡비 과대: {ratio:.3f}")
+            else:
+                for w_px, h_px, _ in snapped:
+                    self.assertGreaterEqual(h_px, 2.0, "1x 메뉴바 아이콘에서 눈이 1×1 점으로 뭉개지면 안 됩니다")
+
 
 if __name__ == "__main__":
     unittest.main()

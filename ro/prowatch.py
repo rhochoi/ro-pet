@@ -88,11 +88,33 @@ class ProWatch:
                 if dec != tact.QUIET:
                     self._seen.add(key)
                 break                     # 한 번에 하나만
+            # 이미 풀린 압축 파일(.zip) 잔존
+            for arc in scenarios.unpacked_archives(self.downloads, now=now):
+                key = ("archive", arc["path"])
+                if key in self._seen or not self._ready(key, now):
+                    continue
+                dec, _ = self.rt.nudge("archive_unpacked",
+                                       f"{_short(Path(arc['path']).name, 26)} 압축이 이미 풀려 있어요",
+                                       "압축 원본 격리", data=arc, folder=self.downloads, now=now)
+                if dec != tact.QUIET:
+                    self._seen.add(key)
+                break
+            # 다운로드 중복 사본 감지
+            dups = [d for d in scenarios.duplicate_downloads(self.downloads, now=now) if ("dup", d["path"]) not in self._seen]
+            if dups:
+                key = ("dup", dups[0]["path"])
+                if self._ready(key, now):
+                    dec, _ = self.rt.nudge("duplicate_found",
+                                           f"다운로드에 중복 사본 {len(dups)}개가 있어요",
+                                           "중복 정리 카드", data={"items": dups}, folder=self.downloads, now=now)
+                    if dec != tact.QUIET:
+                        for d in dups:
+                            self._seen.add(("dup", d["path"]))
         day = time.strftime("%Y-%m-%d", time.localtime(now))
-        if (now - self._last["disk"] >= DISK_EVERY or ("disk", day) in self._waiting) and self._last["disk_day"] != day:
+        if (now - self._last["disk"] >= DISK_EVERY or "disk" in self._waiting) and self._last["disk_day"] != day:
             self._last["disk"] = now
             free = self.free()
-            if free < scenarios.DISK_LOW and self._ready(("disk", day), now):
+            if free < scenarios.DISK_LOW and self._ready("disk", now):
                 dec, _ = self.rt.nudge("disk_low", f"시동 디스크 남은 공간 {free / 1024 ** 3:.1f}GB", "정리 후보 보기",
                                        data={"free": free}, now=now)
                 if dec != tact.QUIET:
@@ -110,28 +132,6 @@ class ProWatch:
             if dec != tact.QUIET:
                 self._seen.add(key)
             break
-        # 이미 풀린 압축 파일(.zip) 잔존
-        for arc in scenarios.unpacked_archives(self.downloads, now=now):
-            key = ("archive", arc["path"])
-            if key in self._seen or not self._ready(key, now):
-                continue
-            dec, _ = self.rt.nudge("archive_unpacked",
-                                   f"{_short(Path(arc['path']).name, 26)} 압축이 이미 풀려 있어요",
-                                   "압축 원본 격리", data=arc, folder=self.downloads, now=now)
-            if dec != tact.QUIET:
-                self._seen.add(key)
-            break
-        # 다운로드 중복 사본 감지
-        dups = [d for d in scenarios.duplicate_downloads(self.downloads, now=now) if ("dup", d["path"]) not in self._seen]
-        if dups:
-            key = ("dup", dups[0]["path"])
-            if self._ready(key, now):
-                dec, _ = self.rt.nudge("duplicate_found",
-                                       f"다운로드에 중복 사본 {len(dups)}개가 있어요",
-                                       "중복 정리 카드", data={"items": dups}, folder=self.downloads, now=now)
-                if dec != tact.QUIET:
-                    for d in dups:
-                        self._seen.add(("dup", d["path"]))
 
     def on_front(self, app_name, now=None):
         """앞 앱 전환 시 AI 도구 간 작업 전환을 감지한다(비밀 앱은 TactGate가 이미 걸렀다)."""

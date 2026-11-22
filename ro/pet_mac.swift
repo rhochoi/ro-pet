@@ -1265,8 +1265,8 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             let eyes = pose.narrowEyes
                 ? [NSRect(x: hd.minX + 5.2, y: hd.minY + hd.height * 0.42, width: 1.7, height: 1.0),
                    NSRect(x: hd.minX + 7.9, y: hd.minY + hd.height * 0.42, width: 1.5, height: 1.0)]
-                : [NSRect(x: hd.minX + 5.35, y: hd.minY + hd.height * 0.29, width: 1.45, height: hd.height * 0.42),
-                   NSRect(x: hd.minX + 7.95, y: hd.minY + hd.height * 0.32, width: 1.3, height: hd.height * 0.36)]
+                : [NSRect(x: hd.minX + 5.35, y: hd.minY + hd.height * 0.275, width: 1.5, height: hd.height * 0.45),
+                   NSRect(x: hd.minX + 7.95, y: hd.minY + hd.height * 0.295, width: 1.4, height: hd.height * 0.41)]
             NSGraphicsContext.current?.compositingOperation = .clear
             // 눈은 크기를 먼저 반올림하고 원래 중심에 다시 놓는다 (두 눈 높이가 어긋나 보이지 않게)
             func snapEye(_ e: NSRect) -> NSRect {

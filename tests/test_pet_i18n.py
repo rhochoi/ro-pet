@@ -76,7 +76,16 @@ class TranslateTest(unittest.TestCase):
                    "되돌렸어요 · 파일 2개 제자리로 · 바뀐 것 1개는 그대로", "ro가 배운 것 · 학습 켜짐 · 먼저 알림 꺼짐",
                    "먼저 알림 30일: 12번 · 도움 40% · 끄기 10% · 통과 · 1단계로 낮춘 유형 찾기 헤맴, 옛 판본",
                    "찾기 헤맴 다시 켜기", "4일", "설치 파일 격리 · 1개 · 2.0MB", "old-app · 120일 안 바뀜 · 다시 만들 수 있음",
-                   "Pages 설치됨", "200일 안 씀 · iCloud에 남고 이 Mac 사본만 내보냄", "지난번에 끝나지 않은 정리 2건을 되돌렸어요"]
+                   "Pages 설치됨", "200일 안 씀 · iCloud에 남고 이 Mac 사본만 내보냄", "지난번에 끝나지 않은 정리 2건을 되돌렸어요",
+                   "학습 켜짐 · 먼저 알림 꺼짐 · 손쉬운 사용 권한 필요",
+                   "Linear 앱이 설치돼 있어요 · Linear-1.20.dmg 남음",
+                   "시동 디스크 남은 공간 7.4GB",
+                   "다운로드에 새 파일 4개가 들어왔어요",
+                   "BrandAssets.zip 압축이 이미 풀려 있어요",
+                   "다운로드에 중복 사본 2개가 있어요",
+                   "Claude에서 Codex(으)로 도구를 바꿨어요",
+                   "2분 동안 폴더를 5번 오가셨어요",
+                   "같은 폴더에 더 새 판이 있어요 · Deck_v2.pdf"]
         samples = static + dynamic
         left = [(s, t) for s, t in zip(samples, run_text("en", samples)) if any("가" <= c <= "힣" for c in t)]
         self.assertGreater(len(static), 15)
