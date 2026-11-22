@@ -96,11 +96,13 @@ Before going live with real payments, run in strict mode (every check must be `[
    ```bash
    spctl --assess --type open --context context:primary-signature -v build/ro-pet-0.4.0.dmg
    ```
-6. Publish the GitHub Release (or push tag `v0.4.0` if GitHub Actions secrets are configured):
+6. Publish the GitHub Release (include a fixed-name `ro-pet.dmg` copy so direct download links always serve the latest notarized DMG):
    ```bash
-   gh release create v0.4.0 build/ro-pet-0.4.0.dmg build/appcast.xml \
+   cp build/ro-pet-0.4.0.dmg build/ro-pet.dmg
+   gh release create v0.4.0 build/ro-pet-0.4.0.dmg build/ro-pet.dmg build/appcast.xml \
      --repo rhochoi/ro-pet --title "ro v0.4.0" \
      --notes "Apple Silicon (macOS 13+). Free mini desktop pet + ro pro licensing and in-app checkout."
+   rm -f build/ro-pet.dmg
    ```
 
 ## 5. End-to-End Smoke Test Before Public Announcement

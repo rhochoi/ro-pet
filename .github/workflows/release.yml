@@ -118,14 +118,15 @@ jobs:
         run: |
           notes="Apple Silicon (macOS 13+) only. Drag ro to Applications. Free mini desktop pet included; unlock ro pro with a license key."
           [ "$SIGNED" = "true" ] || notes="$notes This build is not notarized: see the README for the first-launch warning."
+          cp build/ro-pet-*.dmg build/ro-pet.dmg
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             if [ "$SIGNED" != "true" ] && gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name' | grep -q '^ro-pet-.*\.dmg$'; then
               echo "Release $GITHUB_REF_NAME already has a DMG and this runner has no signing secrets; refusing to overwrite."
             else
-              gh release upload "$GITHUB_REF_NAME" build/ro-pet-*.dmg --clobber
+              gh release upload "$GITHUB_REF_NAME" build/ro-pet-*.dmg build/ro-pet.dmg --clobber
             fi
           else
-            gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg --title "ro $GITHUB_REF_NAME" --notes "$notes"
+            gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg build/ro-pet.dmg --title "ro $GITHUB_REF_NAME" --notes "$notes"
           fi
 
       - name: Remove temporary keychain
