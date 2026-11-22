@@ -1,24 +1,51 @@
 name: release
 
-# Tag vX.Y.Z (matching pyproject.toml) -> test, build DMG, publish a GitHub Release.
-# Without signing secrets the DMG is ad-hoc signed (users see the Gatekeeper warning, see README).
-# With all of these repository secrets it is signed with Developer ID and notarized:
+# Push/PR on main -> run full test suite and verify wheel packaging.
+# Tag vX.Y.Z (matching pyproject.toml) -> test, build DMG, sign/notarize (when secrets exist), publish GitHub Release.
+# Repository secrets for notarized commercial release:
 #   MACOS_CERT_P12_BASE64   base64 of the "Developer ID Application" certificate exported as .p12
 #   MACOS_CERT_PASSWORD     password of that .p12
 #   MACOS_SIGN_IDENTITY     e.g. "Developer ID Application: Name (TEAMID)"
 #   NOTARY_APPLE_ID         Apple ID email
 #   NOTARY_APP_PASSWORD     app-specific password (appleid.apple.com)
 #   NOTARY_TEAM_ID          Team ID
+#   RO_LICENSE_ISSUER       (optional) HTTPS URL of the Cloudflare Worker license issuer
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run test suite
+        run: |
+          python -m pip install pytest build
+          python -m pytest -q -rs
+      - name: Verify wheel contents
+        run: |
+          python -m build --wheel -o dist .
+          for f in ro/hooks/ro_guard.py ro/pet_mac.swift ro/ocr_mac.swift ro/pet_ui/pet.html ro/pet_ui/pet.css ro/pet_ui/pet.js ro/pet_ui/i18n.js ro/license.py ro/licensenet.py ro_pet/__main__.py; do
+            unzip -l dist/*.whl | grep -q " $f$" || { echo "Missing $f in wheel"; exit 1; }
+          done
+
   dmg:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: macos-14   # Apple Silicon
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +56,10 @@ jobs:
           v="$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)"
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != pyproject version v$v"; exit 1; }
 
-      - name: Test
-        run: python3 -m unittest discover -s tests -t .
+      - name: Test on macOS
+        run: |
+          python3 -m pip install --user pytest
+          python3 -m pytest -q -rs tests/test_license.py tests/test_harden.py tests/test_pet_edition.py tests/test_design_system.py tests/test_payment_ui.py tests/test_site.py tests/test_server.py
 
       - name: Install uv
         run: python3 -m pip install --user uv && echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
@@ -69,6 +98,7 @@ jobs:
         env:
           SIGN_IDENTITY: ${{ steps.signing.outputs.signed == 'true' && secrets.MACOS_SIGN_IDENTITY || '' }}
           NOTARY_PROFILE: ${{ steps.signing.outputs.signed == 'true' && 'ro-notary' || '' }}
+          RO_LICENSE_ISSUER: ${{ secrets.RO_LICENSE_ISSUER || '' }}
         run: ./scripts/build-dmg.sh
 
       - name: Verify Gatekeeper acceptance
@@ -86,13 +116,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.signing.outputs.signed }}
         run: |
-          notes="Apple Silicon only. Drag ro to Applications."
+          notes="Apple Silicon (macOS 13+) only. Drag ro to Applications. Free mini desktop pet included; unlock ro pro with a license key."
           [ "$SIGNED" = "true" ] || notes="$notes This build is not notarized: see the README for the first-launch warning."
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            # The release already exists (e.g. created in the web UI): keep its title and notes, add the DMG.
             gh release upload "$GITHUB_REF_NAME" build/ro-pet-*.dmg --clobber
           else
-            gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg --title "$GITHUB_REF_NAME" --notes "$notes"
+            gh release create "$GITHUB_REF_NAME" build/ro-pet-*.dmg --title "ro $GITHUB_REF_NAME" --notes "$notes"
           fi
 
       - name: Remove temporary keychain

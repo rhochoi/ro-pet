@@ -3,3 +3,7 @@ __pycache__/
 dist/
 .venv/
 build/
+.DS_Store
+*.egg-info/
+.ro-delegate/
+node_modules/

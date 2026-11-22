@@ -1,0 +1,232 @@
+import os
+
+os.environ.setdefault("RO_LANG", "source")  # 화면 문구는 번역 전 원문으로 검사한다
+import json
+import os
+import tempfile
+import threading
+import time
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from ro import config, log, mapper, organize, pet
+
+
+class AmbientTest(unittest.TestCase):
+    def test_body_size_never_follows_record_count(self):
+        self.assertNotIn("base_px", pet.ambient_state(500, 20))
+        self.assertNotIn("--base-px", pet.PET_HTML)
+
+    def test_time_band_focus_and_attention(self):
+        self.assertEqual(pet.ambient_state(0, 9)["label"], "Morning · 0")
+        self.assertEqual(pet.ambient_state(12, 14)["band"], "Afternoon")
+        self.assertEqual(pet.ambient_state(26, 21)["band"], "Evening")
+        a = pet.ambient_state(3, 10, focus=True, held=7, attention=True)
+        self.assertEqual((a["focus"], a["held"], a["attention"]), (True, 7, True))
+        self.assertEqual(pet.ambient_state(3, 10, focus=False, held=7)["held"], 0)
+
+
+class StateWaitTest(unittest.TestCase):
+    def setUp(self):
+        self.rt = mock.Mock(token="test-token", snapshot=mock.Mock(return_value={"mood": "idle"}))
+
+    def request_state(self, query="", token=True, host="127.0.0.1:12345"):
+        # 실제 GET 핸들러를 호출하되 소켓만 생략한다.
+        handler_class = pet.make_handler(self.rt)
+        handler = handler_class.__new__(handler_class)
+        handler.path = "/api/state" + query
+        handler.headers = {"Host": host, "X-Ro-Token": self.rt.token if token else ""}
+        handler.server = SimpleNamespace(server_address=("127.0.0.1", 12345))
+        handler._send_json = mock.Mock()
+        handler.do_GET()
+        return handler._send_json.call_args.args
+
+    def get_state(self, query=""):
+        status, state = self.request_state(query)
+        self.assertEqual(status, 200)
+        return state
+
+    def test_state_version_and_immediate_responses(self):
+        with mock.patch.object(self.rt, "snapshot", return_value={"mood": "idle", "counts": {}}), \
+                mock.patch("ro.pet.time.sleep") as sleep:
+            first = self.get_state()
+            self.assertEqual(len(first["version"]), 16)
+            self.assertEqual(self.get_state("?wait=old"), first)
+            # 삽입 순서가 달라도 정렬한 snapshot의 버전은 같다.
+            self.rt.snapshot.return_value = {"counts": {}, "mood": "idle"}
+            self.assertEqual(self.get_state(), first)
+            sleep.assert_not_called()
+        self.assertTrue(pet.ThreadingHTTPServer.daemon_threads)
+
+    def test_state_wait_returns_changed_snapshot(self):
+        with mock.patch.object(self.rt, "snapshot", return_value={"mood": "idle"}) as snapshot, \
+                mock.patch.object(pet, "STATE_WAIT_INTERVAL", 0.02), \
+                mock.patch.object(pet, "STATE_WAIT_TIMEOUT", 1.0):
+            first = self.get_state()
+            timer = threading.Timer(0.08, lambda: setattr(snapshot, "return_value", {"mood": "recording"}))
+            start = time.monotonic()
+            timer.start()
+            try:
+                changed = self.get_state("?wait=" + first["version"])
+            finally:
+                timer.join()
+            self.assertLess(time.monotonic() - start, 0.7)
+            self.assertGreaterEqual(snapshot.call_count, 3)
+            self.assertEqual(changed["mood"], "recording")
+            self.assertNotEqual(changed["version"], first["version"])
+
+    def test_state_wait_timeout_returns_current_snapshot(self):
+        with mock.patch.object(self.rt, "snapshot", return_value={"mood": "idle"}), \
+                mock.patch.object(pet, "STATE_WAIT_INTERVAL", 0.02), \
+                mock.patch.object(pet, "STATE_WAIT_TIMEOUT", 0.12):
+            first = self.get_state()
+            start = time.monotonic()
+            self.assertEqual(self.get_state("?wait=" + first["version"]), first)
+            elapsed = time.monotonic() - start
+            self.assertGreaterEqual(elapsed, 0.12)
+            self.assertLess(elapsed, 0.7)
+
+    def test_cancelled_state_response_does_not_log_an_error(self):
+        with mock.patch("ro.pet.log.append") as append:
+            handler_class = pet.make_handler(self.rt)
+            handler = handler_class.__new__(handler_class)
+            handler.path = "/api/state"
+            handler.headers = {"Host": "127.0.0.1:12345", "X-Ro-Token": self.rt.token}
+            handler.server = SimpleNamespace(server_address=("127.0.0.1", 12345))
+            for error in (BrokenPipeError, ConnectionResetError):
+                handler._send_json = mock.Mock(side_effect=error)
+                handler.do_GET()
+            append.assert_not_called()
+
+    def test_state_wait_still_requires_token_and_host(self):
+        first = self.get_state()
+        with mock.patch.object(self.rt, "snapshot") as snapshot:
+            query = "?wait=" + first["version"]
+            self.assertEqual(self.request_state(query, token=False)[0], 403)
+            self.assertEqual(self.request_state(query, host="evil.example")[0], 403)
+            snapshot.assert_not_called()
+
+
+class ApiFlowTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        d = self.tmp.name
+        projects = [{"name": "ro.bot", "path": d, "languages": [], "git": None},
+                    {"name": "shader", "path": d, "languages": [], "git": None}]
+        mp = str(Path(d) / "map.json")
+        mapper.save_map({"projects": projects, "tools": {}}, mp)
+        self.rt = pet.PetRuntime(home=d, log_dir=d, map_path=mp)
+        self.server = pet.start_server(self.rt)
+        self.base = "http://127.0.0.1:%d" % self.server.server_address[1]
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.tmp.cleanup()
+
+    def post(self, path, body=None, token=None):
+        req = Request(self.base + path, data=json.dumps(body or {}).encode(),
+                      headers={"X-Ro-Token": token or self.rt.token, "Content-Type": "application/json"})
+        return json.loads(urlopen(req).read())
+
+    def test_removed_ask_endpoints_are_404(self):
+        for path in ("/api/ask/preview", "/api/ask", "/api/ask/cancel", "/api/feedback", "/api/learn", "/api/clear"):
+            req = Request(self.base + path, data=json.dumps({"question": "q"}).encode(),
+                          headers={"X-Ro-Token": self.rt.token, "Content-Type": "application/json"})
+            with self.assertRaises(HTTPError) as ctx:
+                urlopen(req)
+            self.assertEqual(ctx.exception.code, 404, path)
+
+    def test_empty_roots_hide_old_map_projects(self):
+        config.update(self.tmp.name, roots=[])
+        self.assertEqual(mapper.load_map(self.rt.map_path, self.tmp.name)["projects"], [])
+        self.assertEqual(mapper.default_roots(self.tmp.name), [])  # 다음 지도도 기본 폴더를 훑지 않는다
+
+    def test_write_gate_needs_the_shown_request_id_and_a_real_boolean(self):
+        first = self.rt._queue({"kind": "organize_apply", "task": "A 작업"})["pending"]
+        second = self.rt._queue({"kind": "organize_apply", "task": "B 작업"})["pending"]
+        r = self.post("/api/write_gate", {"approve": True, "id": first["id"]})  # 예전 카드의 승인
+        self.assertEqual((r["ok"], r["reason"]), (False, "stale"))
+        req = Request(self.base + "/api/write_gate", data=json.dumps({"approve": "false", "id": second["id"]}).encode(),
+                      headers={"X-Ro-Token": self.rt.token, "Content-Type": "application/json"})
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(req)
+        self.assertEqual(ctx.exception.code, 400)
+        self.assertEqual(self.rt.write_pending["id"], second["id"])  # 대기 중인 요청은 그대로
+
+    def test_stats_counts_today_kinds(self):
+        log.append("note", "메모 하나", log_dir=self.tmp.name)
+        log.append("note", "메모 둘", log_dir=self.tmp.name)
+        log.append("route", "질문 하나", engine="codex", log_dir=self.tmp.name)
+        self.assertEqual([list(r) for r in self.rt.snapshot()["stats"]], [["메모", 2], ["질문", 1]])
+
+    def test_timeline_shows_what_an_organize_run_moved(self):
+        """타임라인의 '정리 2건'에 무엇을 옮겼는지(종류별 건수·보관함)가 붙는다. 되돌림처럼 내역이 없으면 붙지 않는다."""
+        log.append("organize", "정리 3건", {"count": 3, "categories": {"문서": 2}, "quarantined": 1}, log_dir=self.tmp.name)
+        log.append("organize", "되돌림 3건", {"count": 3}, log_dir=self.tmp.name)
+        moved, undone = self.rt.snapshot()["timeline"]
+        self.assertEqual(moved["detail"], "문서 2 · 보관함 1")
+        self.assertNotIn("detail", undone)
+
+    def test_mini_edition_does_not_alarm_over_findings(self):
+        """꾸미기(mini)에는 경고를 볼 자리가 없다. 감사 경고가 있어도 불안 표정·빨간 점을 띄우지 않는다."""
+        os.chmod(self.tmp.name, 0o755)
+        self.rt._disk_cache = None
+        st = self.rt.snapshot()
+        self.assertEqual((st["mood"], st["ambient"]["attention"]), ("anxious", True))
+        self.rt.edition = "mini"
+        st = self.rt.snapshot()
+        self.assertEqual((st["mood"], st["ambient"]["attention"]), ("idle", False))
+
+    def test_organize_files_lists_without_queueing(self):
+        """정리 행을 펼치면 무엇이 옮겨질지 보여 주되 승인 요청은 걸지 않는다."""
+        plan = {"created": "t", "dest_root": "/d", "items": [
+            {"id": "a1", "path": "/src/notes.txt", "dest": "/d/문서/2026_notes.txt", "sha": "s", "category": "문서",
+             "review": False, "action": "move", "size": 1}]}
+        with mock.patch.object(organize, "load_plan", return_value=plan), \
+                mock.patch.object(organize, "pending", return_value=[]):
+            r = self.post("/api/organize/files", {"category": "문서"})
+        self.assertEqual(r, {"ok": True, "files": [{"from": "notes.txt", "to": "2026_notes.txt"}]})
+        self.assertIsNone(self.rt.write_pending)
+
+    def test_capture_undo_hides_from_state(self):
+        r = self.post("/api/capture", {"kind": "text", "name": "메모", "text": "ro.bot 팔레트 정리", "size": 10})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["project"], "ro.bot")
+        self.assertEqual(self.rt.snapshot()["counts"]["today_events"], 1)
+        self.assertTrue(self.post("/api/capture_undo", {"id": r["id"]})["ok"])
+        self.assertEqual(self.rt.snapshot()["counts"]["today_events"], 0)
+        self.assertEqual(list(self.rt.snapshot()["stats"]), [])
+
+    def test_recall_organize_and_focus_flow(self):
+        log.append("note", "ro.bot 작업 하나", log_dir=self.tmp.name)
+        log.append("note", "shader 작업", log_dir=self.tmp.name)
+        r = self.post("/api/recall", {"question": "오늘 ro.bot에서 뭐 했지?"})
+        self.assertTrue(r["found"])
+        self.assertEqual(r["evidence"][0]["n"], 1)
+        plan = self.post("/api/records/plan")
+        self.assertEqual((plan["total"], plan["changes"]), (2, 2))
+        self.assertEqual(self.post("/api/records/apply", {"picks": {}})["applied"], 2)
+        self.assertTrue(self.post("/api/records/undo")["ok"])
+        self.assertEqual(self.post("/api/records/plan")["changes"], 2)
+        self.assertTrue(self.post("/api/focus", {"on": True})["focus"])
+        log.append("note", "집중 중 기록", log_dir=self.tmp.name)
+        amb = self.rt.snapshot()["ambient"]
+        self.assertEqual((amb["focus"], amb["held"]), (True, 1))
+        self.assertIn("ro.bot", self.rt.snapshot()["project_names"])
+
+    def test_capture_project_validates_and_rejects_bad_token(self):
+        r = self.post("/api/capture", {"kind": "text", "name": "메모", "text": "그냥 메모", "size": 4})
+        self.assertFalse(self.post("/api/capture_project", {"id": r["id"], "project": "없는곳"})["ok"])
+        self.assertTrue(self.post("/api/capture_project", {"id": r["id"], "project": "shader"})["ok"])
+        from urllib.error import HTTPError
+        with self.assertRaises(HTTPError):
+            self.post("/api/capture", {"kind": "text", "text": "x"}, token="wrong")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ro — three layers, two eyes</title>
+<style>
+__RO_CSS__</style>
+</head>
+<body class="material-clay edition-__RO_EDITION__">
+<main id="stage" class="stage">
+  <h1 class="sr-only">ro.bot pet</h1>
+  <!-- 말풍선 패널 (Ro의 말풍선) -->
+  <div id="bubble" class="bubble hidden">
+    <div class="bubble-tail" aria-hidden="true"></div>
+
+    <!-- 패널 상단 바 & 네비게이션 -->
+    <div id="bubbleTop" class="bubble-top">
+      <div class="top-left">
+        <span class="brand-tag">ro.bot</span>
+      </div>
+      <div class="nav-tabs">
+        <button id="tabBtnHome" class="nav-tab active" data-tab="home" aria-current="page">Home</button>
+        <button id="tabBtnTimeline" class="nav-tab" data-tab="timeline">Timeline</button>
+        <button id="tabBtnOrganize" class="nav-tab" data-tab="organize">Organize</button>
+        <button id="tabBtnSettings" class="nav-tab" data-tab="settings">Settings</button>
+      </div>
+      <div class="top-right">
+        <button id="moreBtn" class="close-x-btn" style="display:none;" title="Menu (panel color, bring to desktop, send to menu bar)" aria-label="Menu"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.25"></circle><circle cx="8" cy="8" r="1.25"></circle><circle cx="13" cy="8" r="1.25"></circle></svg></button>
+        <button id="closeBtn" class="close-x-btn" title="Close panel (Esc)" aria-label="Close panel"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m3.5 3.5 9 9M12.5 3.5l-9 9"></path></svg></button>
+      </div>
+    </div>
+    <!-- 상태를 못 받았을 때: 마지막으로 받은 내용을 유지하고 이 줄만 띄운다 -->
+    <div id="staleBanner" class="stale-banner" role="status" hidden></div>
+
+    <!-- 1. 기본 (Home) 탭 -->
+    <div id="paneHome" class="tab-pane active">
+      <!-- 확인할 일: 무엇이 문제이고 다음에 무엇을 하면 되는지 -->
+      <div id="attentionCard" class="gate-box" style="display:none;" role="region" aria-label="확인할 일">
+        <div class="gate-head">확인할 일</div>
+        <div id="attentionText" class="gate-body"></div>
+      </div>
+      <!-- ro pro 1단계 힌트·초기 동의 안내 -->
+      <div id="proHintCard" class="gate-box pro-only" style="display:none;" role="status" aria-live="polite"></div>
+      <div id="proOnboardCard" class="gate-box pro-only" style="display:none;" role="region" aria-label="ro pro 시작 설정"></div>
+      <!-- 브리핑 & 필터 -->
+      <div class="greeting-section">
+        <div id="greetingTitle" class="greeting-title">오늘 새로 시작했어요.</div>
+        <div id="greetingSub" class="greeting-sub">기록이 시작되면 여기에 요약이 표시됩니다</div>
+        <div class="sub-filters" role="group" aria-label="보기">
+          <button id="filterSummaryBtn" class="sub-pill active" aria-pressed="true">최근 기록</button>
+          <button id="filterStatsBtn" class="sub-pill" aria-pressed="false">통계</button>
+        </div>
+      </div>
+
+      <!-- 3열 메트릭 카드 ("챗 대신 통계") -->
+      <div class="metrics-box">
+        <div class="metric-item">
+          <div id="metricEvents" class="metric-value">0</div>
+          <div class="metric-label">기록</div>
+        </div>
+        <div class="metric-sep"></div>
+        <div class="metric-item">
+          <div id="metricProjects" class="metric-value">0</div>
+          <div class="metric-label">프로젝트</div>
+        </div>
+        <div class="metric-sep"></div>
+        <div class="metric-item" id="metricAttentionItem" title="눌러서 확인할 일 보기" role="button" tabindex="0">
+          <div id="metricAttention" class="metric-value">0</div>
+          <div class="metric-label">확인할 일</div>
+        </div>
+      </div>
+
+      <!-- C · 근거 붙은 답 -->
+      <div id="recallCard" class="rc-card" style="display:none;" aria-live="polite"></div>
+      <!-- F · 파일 찾기 -->
+      <div id="findCard" class="rc-card fd-card" style="display:none;" aria-live="polite"></div>
+      <!-- D · 미리 보고 되돌리는 정리 -->
+      <div id="recOrgCard" class="rec-org-card" style="display:none;" aria-live="polite"></div>
+
+      <!-- 최근 기록 / 통계 (위 보기 버튼으로 전환) -->
+      <div id="summaryView" class="view-block">
+        <div class="section-row">
+          <span class="section-label">최근 기록</span>
+          <span id="logCountBadge" class="section-badge">0건</span>
+        </div>
+        <div id="activityList" class="activity-stream"></div>
+        <button id="activityMoreBtn" class="link-btn" type="button" style="display:none;">타임라인에서 전체 보기</button>
+      </div>
+      <div id="statsView" class="view-block" style="display:none;">
+        <div class="section-row">
+          <span class="section-label">오늘 종류별</span>
+          <span id="statsTotal" class="section-badge">0건</span>
+        </div>
+        <div id="statsList" class="stats-list"></div>
+      </div>
+    </div>
+
+    <!-- 2. 타임라인 (Timeline) 탭 -->
+    <div id="paneTimeline" class="tab-pane">
+      <div class="timeline-head-row">
+        <span class="orange-tag">오늘 타임라인</span>
+        <span id="timelineCountText" class="timeline-counter">0건</span>
+      </div>
+      <div id="timelineList" class="timeline-stream"></div>
+      <div id="timelineMore" class="timeline-more" style="display:none;"></div>
+    </div>
+
+    <!-- 3. 정리 탭: 정리안(카테고리별 건수) → 버튼 = 승인 요청 → 아래 승인 카드에서 실행 -->
+    <div id="paneOrganize" class="tab-pane">
+      <div class="setting-block" id="fileOrgBlock">
+        <div class="block-title">다운로드 정리 (승인 전에는 옮기지 않음)</div>
+        <div id="orgSummary" class="org-summary">정리안이 없습니다. 먼저 정리안을 만드세요.</div>
+        <div id="orgCats" class="org-cats"></div>
+        <div id="orgQuar" class="org-cats"></div>
+        <div class="options-row">
+          <button id="orgScanBtn" class="opt-btn">정리안 만들기</button>
+          <button id="orgStageBtn" class="opt-btn pro-only" type="button">확인 카드로 정리</button>
+          <button id="orgDiskBtn" class="opt-btn pro-only" type="button">용량 정리 후보</button>
+          <button id="orgUndoBtn" class="opt-btn" style="display:none;">되돌리기</button>
+        </div>
+        <div id="orgMsg" class="org-msg" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <!-- 4. 설정 탭 -->
+    <div id="paneSettings" class="tab-pane">
+      <div class="settings-stream">
+        <!-- 집중 모드 -->
+        <div class="setting-block pro-only">
+          <div class="block-title">Focus mode</div>
+          <div class="options-row">
+            <button id="focusBtn" class="opt-btn" aria-pressed="false">Turn on focus mode</button>
+          </div>
+          <div class="block-sub">Closes its eyes and holds notifications</div>
+        </div>
+
+        <!-- AI 도구 연결 -->
+        <div class="setting-block pro-only">
+          <div class="block-title">Connect AI tools</div>
+          <div class="options-row">
+            <button id="connOpenBtn" class="opt-btn">Claude · Codex · Antigravity</button>
+          </div>
+          <div class="block-sub">Connect shared rules and safety hooks to installed tools (preview, then approve) and hand off input</div>
+        </div>
+
+        <!-- ro pro 학습·먼저 알림 동의 -->
+        <div id="proConsentBlock" class="setting-block pro-only">
+          <div class="block-title">What ro learned · Heads-ups</div>
+          <div id="proConsentStatus" class="block-sub">ro won't learn or nudge until you turn it on.</div>
+          <div class="options-row">
+            <button id="proLearnToggleBtn" class="opt-btn" type="button">Turn on learning</button>
+            <button id="proNudgeToggleBtn" class="opt-btn" type="button">Turn on heads-ups</button>
+            <button id="proLearnedOpenBtn" class="opt-btn" type="button">View learned</button>
+          </div>
+        </div>
+
+        <!-- ro pro plan & license card -->
+        <div id="proPlanBlock" class="setting-block pro-plan-card">
+          <div class="pro-plan-head">
+            <span class="block-title">ro pro</span>
+            <span id="proStatusPill" class="pro-status-pill">Free</span>
+          </div>
+          <div id="proPlanSub" class="block-sub">Find files by asking, tidy Downloads with undo, and hand off between AI tools — all on this Mac.</div>
+          <div class="options-row">
+            <button id="proOpenBuyBtn" class="opt-btn pro-cta-btn mini-only" type="button">Upgrade to Pro</button>
+            <button id="proOpenKeyBtn" class="opt-btn" type="button">License key</button>
+          </div>
+        </div>
+
+        <div class="setting-block">
+          <div id="materialTitle" class="block-title">Material</div>
+          <div class="segmented" role="group" aria-labelledby="materialTitle">
+            <button class="opt-btn mat-opt" data-mat="clay">Clay</button>
+            <button class="opt-btn mat-opt" data-mat="glass">Glass</button>
+          </div>
+        </div>
+
+        <div class="setting-block">
+          <div id="colorTitle" class="block-title">ro color</div>
+          <div class="segmented" role="group" aria-labelledby="colorTitle">
+            <button class="opt-btn look-opt" data-key="color" data-value="auto">System</button>
+            <button class="opt-btn look-opt" data-key="color" data-value="light">Light</button>
+            <button class="opt-btn look-opt" data-key="color" data-value="dark">Dark</button>
+            <button class="opt-btn look-opt" data-key="color" data-value="orange">Orange</button>
+          </div>
+        </div>
+
+        <div class="setting-block">
+          <div id="sizeTitle" class="block-title">Size</div>
+          <div class="segmented" role="group" aria-labelledby="sizeTitle">
+            <button class="opt-btn size-opt" data-size="small" aria-pressed="false">Small</button>
+            <button class="opt-btn size-opt active" data-size="medium" aria-pressed="true">Medium</button>
+            <button class="opt-btn size-opt" data-size="big" aria-pressed="false">Big</button>
+          </div>
+        </div>
+
+        <!-- 돌아다니기 스위치 -->
+        <div class="setting-block">
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span class="toggle-name">Wander</span>
+              <span class="toggle-sub">Slowly strolls along the bottom of the screen</span>
+            </div>
+            <label class="switch">
+              <input id="wanderToggle" type="checkbox" aria-label="Wander">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 앱 반응: 앞에 온 앱이 메일·메시지 앱인지, 새 앱이 열렸는지만 본다 -->
+        <div class="setting-block react-setting">
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span class="toggle-name">Reactions</span>
+              <span class="toggle-sub">Notices when you open an app or switch to mail or messages. Only the app in front is checked, nothing is read or saved</span>
+            </div>
+            <label class="switch">
+              <input id="reactToggle" type="checkbox" aria-label="Reactions" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 표정·모션 미리보기 (mini 에디션에서만 보인다) -->
+        <div class="setting-block mini-only">
+          <div class="block-title">Expression</div>
+          <div id="moodChips" class="preview-chips"></div>
+        </div>
+        <div class="setting-block mini-only">
+          <div class="block-title">Motion</div>
+          <div id="actionChips" class="preview-chips"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 실행 전 확인 카드: 어느 탭에서 요청해도 입력창 바로 위에 뜬다 -->
+    <div id="writeCard" class="gate-box" style="display:none;" role="region" aria-label="실행 전 확인" tabindex="-1">
+      <div class="gate-head">실행 전 확인</div>
+      <div id="writeText" class="gate-body"></div>
+      <ul id="writeFiles" class="gate-files" style="display:none;" tabindex="0" aria-label="처리할 파일 전체 목록(스크롤)"></ul>
+      <div class="gate-actions">
+        <button id="writeApproveBtn" class="action-btn primary">승인하고 실행</button>
+        <button id="writeRejectBtn" class="action-btn ghost">취소</button>
+      </div>
+    </div>
+
+    <!-- 질문 보내기 전 확인 카드 -->
+    <div id="sendCard" class="gate-box" style="display:none;" role="region" aria-label="안내">
+      <div id="sendHead" class="gate-head">어떻게 할까요? ro는 기록과 파일 찾기를 하고, 질문은 AI 도구로 넘겨요.</div>
+      <div id="sendText" class="gate-body"></div>
+      <div class="gate-actions">
+        <button id="sendRecordBtn" class="action-btn primary">기록으로만 남기기</button>
+        <button id="sendFindBtn" class="action-btn ghost" title="내 파일에서 이름·내용으로 찾아요">내 파일에서 찾기</button>
+        <button id="sendEngineBtn" class="action-btn ghost" title="Claude·Codex·Antigravity로 넘겨요">AI로 넘기기</button>
+        <button id="sendCancelBtn" class="action-btn ghost">취소</button>
+      </div>
+    </div>
+
+    <!-- A · 기록 토스트 -->
+    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;"></div>
+
+    <!-- B · ⌥R 명령 팔레트 -->
+    <div id="palette" class="palette pro-only" hidden>
+      <div class="pal-box" role="dialog" aria-modal="true" aria-label="명령 팔레트">
+        <div class="pal-input-row">
+          <span class="pal-slash" aria-hidden="true">/</span>
+          <input id="palInput" class="pal-input" type="text" role="combobox" aria-expanded="true"
+                 aria-controls="palList" aria-label="명령을 고르거나 기록·파일 검색어를 쓰세요" autocomplete="off"
+                 placeholder="명령을 고르거나 기록·파일 검색어를 쓰세요">
+        </div>
+        <div id="palList" class="pal-list" role="listbox" aria-label="명령 목록"></div>
+        <div class="pal-foot"><span><kbd>↑↓</kbd> 이동</span><span><kbd>↵</kbd> 실행</span><span><kbd>esc</kbd> 닫기</span></div>
+      </div>
+    </div>
+
+    <!-- AI 도구 연결 창: 상태는 읽기만 하고, 넘기기는 클립보드 + 앱 열기 -->
+    <div id="connWin" class="palette pro-only" hidden>
+      <div class="pal-box" role="dialog" aria-modal="true" aria-labelledby="connTitle">
+        <div class="pal-input-row"><b id="connTitle" style="flex:1;">AI 도구 연결</b><button id="connCloseBtn" class="close-x-btn" type="button" title="닫기 (Esc)" aria-label="닫기">×</button></div>
+        <div id="connPending" class="conn-pending" hidden></div>
+        <div id="connList" class="conn-list"></div>
+        <div class="pal-foot"><span>입력창에서 <kbd>/claude 질문</kbd>으로 바로 넘기기</span><span><kbd>esc</kbd> 닫기</span></div>
+      </div>
+    </div>
+
+    <!-- In-app Pro checkout & license modal (works in mini and pro) -->
+    <div id="proModal" class="palette" hidden>
+      <div class="pal-box pro-modal-box" role="dialog" aria-modal="true" aria-labelledby="proModalTitle">
+        <div class="pal-input-row">
+          <b id="proModalTitle" class="pro-modal-title">ro pro</b>
+          <button id="proModalCloseBtn" class="close-x-btn" type="button" title="Close (Esc)" aria-label="Close">×</button>
+        </div>
+        <div class="pro-modal-body">
+          <div class="segmented pro-modal-tabs" role="tablist" aria-label="Pro and license">
+            <button id="proTabBuy" class="opt-btn active" type="button" role="tab" aria-selected="true" aria-controls="proBuyView">Upgrade</button>
+            <button id="proTabKey" class="opt-btn" type="button" role="tab" aria-selected="false" aria-controls="proKeyView">License key</button>
+          </div>
+
+          <div id="proBuyView" class="pro-view" role="tabpanel" aria-labelledby="proTabBuy">
+            <ul class="pro-perks">
+              <li>Find files by asking (⌥R) by name, date, and text inside</li>
+              <li>Tidy Downloads with one-step undo — nothing deleted</li>
+              <li>AI tool handoff and safety hooks, 100% on this Mac</li>
+            </ul>
+            <div class="pro-plans" role="radiogroup" aria-label="Billing plan">
+              <button id="proPlanYearly" class="pro-plan-opt selected" type="button" role="radio" aria-checked="true" data-plan="yearly">
+                <div class="pro-plan-row">
+                  <span class="pro-plan-name">Yearly</span>
+                  <span class="pro-plan-badge">Save 33%</span>
+                </div>
+                <div class="pro-plan-price">$24 <span class="pro-plan-unit">/ year</span></div>
+                <div class="pro-plan-meta">Early supporters $19 first year</div>
+              </button>
+              <button id="proPlanMonthly" class="pro-plan-opt" type="button" role="radio" aria-checked="false" data-plan="monthly">
+                <div class="pro-plan-row">
+                  <span class="pro-plan-name">Monthly</span>
+                </div>
+                <div class="pro-plan-price">$3 <span class="pro-plan-unit">/ month</span></div>
+                <div class="pro-plan-meta">Cancel any time</div>
+              </button>
+            </div>
+            <button id="proCheckoutBtn" class="pro-primary-btn" type="button">Continue to checkout</button>
+            <div id="proCheckoutMsg" class="pro-notice" role="status" aria-live="polite" hidden></div>
+            <div id="proPendingRow" class="pro-inline-actions" hidden>
+              <button id="proCheckNowBtn" class="opt-btn" type="button">Check activation now</button>
+              <button id="proSwitchToKeyBtn" class="opt-btn" type="button">Paste key instead</button>
+            </div>
+            <div class="pro-trust">14-day refund · All your personal Macs · Secure checkout via Polar</div>
+          </div>
+
+          <div id="proKeyView" class="pro-view" role="tabpanel" aria-labelledby="proTabKey" hidden>
+            <div id="proKeyStatus" class="pro-status-box">Checking license status…</div>
+            <label for="proKeyInput" class="pro-field-label">Paste the key from your purchase email (starts with RO1.)</label>
+            <div class="pro-key-row">
+              <input id="proKeyInput" class="fd-input pro-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="RO1.…" aria-label="License key" />
+              <button id="proKeySaveBtn" class="opt-btn pro-cta-btn" type="button">Save key</button>
+            </div>
+            <div id="proKeyFeedback" class="pro-feedback" role="status" aria-live="polite"></div>
+            <div id="proRestartBar" class="pro-restart-bar" hidden>
+              <div class="pro-restart-text">Restart ro to apply your license change. Your files and records stay as they are.</div>
+              <button id="proRestartBtn" class="pro-primary-btn" type="button">Restart ro now</button>
+            </div>
+            <div id="proAutoRow" class="pro-auto-row">
+              <div class="toggle-text">
+                <span class="toggle-name">Get my key automatically</span>
+                <span class="toggle-sub">Picks up keys and renewals using a random install ID only</span>
+              </div>
+              <label class="switch">
+                <input id="proAutoToggle" type="checkbox" aria-label="Get my key automatically" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div id="proRemoveRow" class="pro-remove-row" hidden>
+              <button id="proRemoveBtn" class="opt-btn" type="button">Remove key</button>
+              <button id="proRemoveConfirmBtn" class="opt-btn pro-danger-btn" type="button" hidden>Confirm remove</button>
+              <button id="proRemoveCancelBtn" class="opt-btn" type="button" hidden>Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="pal-foot"><span>Checked offline on this Mac</span><span><kbd>esc</kbd> close</span></div>
+      </div>
+    </div>
+
+    <!-- 하단 질문 & 기록 입력 폼 (주황 '+' 액션 버튼) -->
+    <form id="askForm" class="ask-form pro-only">
+      <div id="slashPop" class="slash-pop" role="listbox" aria-label="명령 목록" hidden></div>
+      <div class="input-bar">
+        <input id="askInput" class="ask-input" type="text" placeholder="기록하거나 파일을 찾아보세요 · / 명령" autocomplete="off"
+               role="combobox" aria-autocomplete="list" aria-controls="slashPop" aria-expanded="false" />
+        <button id="askSubmit" class="ask-submit" type="submit" title="기록하거나 찾기">
+          <svg id="plusIcon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+            <line x1="8" y1="2.5" x2="8" y2="13.5"></line>
+            <line x1="2.5" y1="8" x2="13.5" y2="8"></line>
+          </svg>
+          <svg id="sendIcon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style="display:none;">
+            <path d="M14.2 1.8a.7.7 0 0 0-.75-.15L1.8 6.5a.7.7 0 0 0 .04 1.3l4.5 1.7 1.7 4.5a.7.7 0 0 0 1.3.04l4.85-11.65a.7.7 0 0 0-.19-.59z"></path>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- RO 캐릭터: 층 셋, 눈 둘 (왼쪽 정렬) -->
+  <div id="petWrap" class="pet-wrap mood-idle" aria-label="ro" role="button" tabindex="0">
+    <div id="roBot" class="ro-bot">
+      <span id="streak" class="streak" aria-hidden="true"></span>
+      <div id="layerHead" class="pill pill-head">
+        <i class="g-env" aria-hidden="true"></i>
+        <span id="attnDot" class="attn-dot" aria-hidden="true" hidden></span>
+        <span id="muteBadge" class="mute-badge" hidden><svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 11V7a4 4 0 0 1 8 0v4l1 1H3z"/><line x1="2" y1="2" x2="14" y2="14"/></svg><span>0</span></span>
+        <div id="eyesWrap" class="eyes">
+          <div id="eyeL" class="eye eye-l"></div>
+          <div id="eyeR" class="eye eye-r"></div>
+          <svg class="resolved-arch" viewBox="0 0 24 10" aria-hidden="true">
+            <path d="M 2.5 7.5 C 4.5 2.5, 8.0 2.5, 10.0 7.5 M 14.0 7.5 C 16.0 2.8, 19.5 2.8, 21.5 7.5" />
+          </svg>
+        </div>
+      </div>
+      <div id="layerBody" class="pill pill-body"><i class="g-env" aria-hidden="true"></i></div>
+      <div id="layerBase" class="pill pill-base"><i class="g-env" aria-hidden="true"></i></div>
+    </div>
+    <span id="reactBadge" class="react-badge" aria-hidden="true"></span>
+    <div id="petCaption" class="pet-label">Idle</div>
+  </div>
+</main>
+
+<script>
+__RO_JS__</script>
+</body>
+</html>

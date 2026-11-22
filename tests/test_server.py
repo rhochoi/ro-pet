@@ -1,100 +1,29 @@
-import json
-import tempfile
+"""Compatibility entry point tests for `python3 -m ro_pet`."""
 import unittest
-import urllib.error
-import urllib.request
+from unittest import mock
 
-from ro_pet import server
+import ro_pet
+from ro_pet import __main__ as ro_pet_main
 
 
-class ServerTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        cls.pet = server.Pet(home=cls.tmp.name)
-        cls.srv = server.start_server(cls.pet)
-        cls.base = f"http://127.0.0.1:{cls.srv.server_address[1]}"
+class RoPetCompatTest(unittest.TestCase):
+    def test_package_exposes_ro_pet(self):
+        self.assertTrue(hasattr(ro_pet.pet, "launch"))
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.srv.shutdown()
-        cls.srv.server_close()
-        cls.tmp.cleanup()
+    def test_main_forwards_flags_to_ro_pet_launch(self):
+        with mock.patch.object(ro_pet_main.license_mod, "apply_edition_from_license") as apply_lic, \
+                mock.patch.object(ro_pet_main.pet, "launch", return_value="http://127.0.0.1:8765/") as launch:
+            rc = ro_pet_main.main(["--browser", "--no-wander", "--port", "9123"])
+        self.assertEqual(rc, 0)
+        apply_lic.assert_called_once()
+        launch.assert_called_once_with(port=9123, mode="browser", wander=False, build_only=False)
 
-    def call(self, path, body=None, token=True):
-        headers = {"X-Ro-Token": self.pet.token} if token else {}
-        data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(self.base + path, data=data, headers=headers)
-        try:
-            with urllib.request.urlopen(req) as r:
-                return r.status, json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
-
-    def test_page_is_english_and_carries_token(self):
-        with urllib.request.urlopen(self.base + "/") as r:
-            html = r.read().decode()
-        self.assertIn(self.pet.token, html)
-        self.assertNotRegex(html, "[가-힣]")
-
-    def test_page_uses_only_state_and_prefs(self):
-        import re
-        html = server.render_html("t", {})
-        self.assertEqual(sorted(set(re.findall(r"/api/[a-z_/]+", html))), ["/api/prefs", "/api/state"])
-
-    def test_size_is_a_saved_setting(self):
-        status, body = self.call("/api/prefs", {"size": "big"})
-        self.assertEqual((status, body["prefs"]["size"]), (200, "big"))
-        self.assertFalse(self.call("/api/prefs", {"size": "huge"})[1]["ok"])
-
-    def test_native_host_flag_is_declared_before_first_use(self):
-        # reading a const before its declaration stops the whole page script
-        page = server.PAGE.read_text(encoding="utf-8")
-        self.assertEqual(page.index("isNativeHost"), page.index("const isNativeHost") + len("const "))
-
-    def test_token_required(self):
-        self.assertEqual(self.call("/api/state", token=False)[0], 403)
-        self.assertEqual(self.call("/api/prefs", {"material": "glass"}, token=False)[0], 403)
-
-    def test_prefs_roundtrip_and_validation(self):
-        self.assertEqual(self.call("/api/prefs", {"material": "glass", "color": "orange", "panel": "dark"})[1]["prefs"],
-                         {"material": "glass", "color": "orange", "panel": "dark"})
-        self.assertFalse(self.call("/api/prefs", {"color": "sage"})[1]["ok"])  # the old tint presets are gone
-        self.assertEqual(self.call("/api/state")[1]["prefs"]["material"], "glass")
-        self.assertFalse(self.call("/api/prefs", {"material": "wood"})[1]["ok"])
-
-    def test_action(self):
-        self.assertTrue(self.call("/api/action", {"action": "alert", "duration": 2})[1]["ok"])
-        self.assertEqual(self.call("/api/state")[1]["action"], "alert")
-        self.assertFalse(self.call("/api/action", {"action": "fly"})[1]["ok"])
-        self.assertFalse(self.call("/api/action", {"action": "alert", "duration": 9999})[1]["ok"])
-
-    def test_nothing_else_is_exposed(self):
-        self.assertEqual(self.call("/api/organize/apply", {})[0], 404)
+    def test_build_only_returns_nonzero_when_missing(self):
+        with mock.patch.object(ro_pet_main.pet, "launch", return_value=None):
+            self.assertEqual(ro_pet_main.main(["--build-only"]), 1)
+        with mock.patch.object(ro_pet_main.pet, "launch", return_value="/tmp/ro-pet-host"):
+            self.assertEqual(ro_pet_main.main(["--build-only"]), 0)
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
-class PrebuiltHostTest(unittest.TestCase):
-    def test_env_host_skips_swiftc(self):
-        import os
-        import stat
-        from pathlib import Path
-
-        from ro_pet.__main__ import ensure_mac_binary
-
-        with tempfile.TemporaryDirectory() as d:
-            fake = Path(d) / "host"
-            fake.write_text("#!/bin/sh\n")
-            fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
-            old = os.environ.get("RO_PET_HOST")
-            os.environ["RO_PET_HOST"] = str(fake)
-            try:
-                self.assertEqual(ensure_mac_binary(), fake)
-            finally:
-                if old is None:
-                    del os.environ["RO_PET_HOST"]
-                else:
-                    os.environ["RO_PET_HOST"] = old

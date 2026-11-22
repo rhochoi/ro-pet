@@ -1,0 +1,468 @@
+"""ro 터미널 CLI.  python -m ro map | show"""
+import argparse
+import importlib.metadata
+import json
+import math
+import os
+import sqlite3
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from . import (activity, config, engines, find, findeval, findsignals, handoff, harden, log, mapper, organize, pet, selfupdate,
+               setup as setup_mod, storage)
+
+DEFAULT_OUT = "~/.ro/map.json"
+
+
+def _pos_int(value, label):
+    if value < 1:
+        raise SystemExit(f"{label} 값은 1 이상이어야 합니다.")
+    return value
+
+
+def _nonneg_float(value, label):
+    if not math.isfinite(value) or value < 0:
+        raise SystemExit(f"{label} 값은 0 이상의 유한한 수여야 합니다.")
+    return value
+
+
+def _check_find_roots(raw_roots):
+    for raw in raw_roots:
+        s = str(raw).strip()
+        if not s:
+            raise SystemExit("검색 폴더 경로가 비어 있습니다.")
+        norm = Path(os.path.normpath(os.path.abspath(os.path.expanduser(s))))
+        if not norm.exists():
+            raise SystemExit(f"폴더가 없습니다: {raw}")
+        if not norm.is_dir():
+            raise SystemExit(f"폴더가 아닙니다: {raw}")
+        if find._safe_path(norm) is None:
+            raise SystemExit(f"검색할 수 없는 범위입니다(심볼릭 링크·숨김·민감 경로): {raw}")
+
+
+def _version():
+    try:
+        return importlib.metadata.version(selfupdate.PACKAGE)
+    except importlib.metadata.PackageNotFoundError:
+        return "개발 체크아웃(미설치)"
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    try:
+        return _run(argv)
+    except KeyboardInterrupt:
+        note = "중단했습니다. 반영된 내역은 `ro organize status`로 확인하세요." if argv[:1] in (["organize"], ["tidy"]) else "중단했습니다."
+        print(note, file=sys.stderr)
+        return 130
+
+
+def _run(argv):
+    if argv[:1] == ["tidy"]:  # 별칭: ro organize로 합쳐졌다(--help 같은 선두 옵션까지 그대로 넘긴다)
+        return organize.tidy_alias(argv[1:])
+    if argv[:1] == ["organize"]:
+        return organize.main(argv[1:])
+    if argv[:1] == ["learned"]:  # ro pro 전용: ro가 배운 것
+        from . import profile
+        return profile.main(argv[1:])
+    if argv[:1] == ["license"]:  # pro 라이선스 키(오프라인 검사)
+        from . import license as license_mod
+        return license_mod.main(argv[1:])
+    if argv[:1] == ["cards"]:  # ro pro 전용 카드 색인. mini에서는 불러오지도 않는다
+        from . import cards
+        return cards.main(argv[1:])
+    ap = argparse.ArgumentParser(prog="ro", description="ro — 내 Mac 파일을 말로 찾고, 승인한 것만 정리하는 로컬 전용 도구.")
+    ap.add_argument("--version", action="version", version=f"ro {_version()}")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    m = sub.add_parser("map", help="읽기 전용 스캔으로 지도 생성")
+    m.add_argument("--roots", nargs="+", help="스캔할 폴더(기본: ~/.ro/config.json의 roots, 없으면 ~/Developer ~/Projects)")
+    m.add_argument("--out", default=DEFAULT_OUT)
+    s = sub.add_parser("show", help="저장된 지도 요약")
+    s.add_argument("--map", default=DEFAULT_OUT)
+    au = sub.add_parser("audit", help="~/.ro 권한·비밀·무결성 점검")
+    au.add_argument("--fix", action="store_true", help="권한만 0700/0600으로 조정")
+    sub.add_parser("eval", help="안전 불변식 회귀 체크리스트")
+    fn = sub.add_parser("find", help="이름·종류·수정일·본문으로 파일 후보 찾기(원본 읽기 전용)")
+    fn.add_argument("query", help="찾을 말(단어·초성·오타·종류·기간·\"본문 구절\")")
+    body_flags = fn.add_mutually_exclusive_group()
+    body_flags.add_argument("--body", dest="body", action="store_true", default=None, help="문서 본문과 OCR 글자까지 검색")
+    body_flags.add_argument("--no-body", dest="body", action="store_false", help="이름·메타데이터만 검색")
+    fn.add_argument("--budget", type=float, default=20, help="본문 색인·검색 시간 예산(초, 기본 20)")
+    fi = sub.add_parser("find-index", help="로컬 본문 색인 관리")
+    fi.add_argument("action", choices=["status", "clear", "prune"])
+
+    fn.add_argument("--n", type=int, default=10, help="최대 결과 수(기본 10)")
+    fn.add_argument("--no-spotlight", action="store_true", help="Spotlight 보강·받은 날짜 조회 생략")
+    fn.add_argument("--root", nargs="+", action="extend", help="검색할 폴더 직접 지정(기본: 설정 또는 주요 폴더)")
+    signals = sub.add_parser("find-signals", help="검색 사용 신호 관리(기본 꺼짐)")
+    signals.add_argument("action", choices=["on", "off", "status", "show", "summary", "clear"])
+    signals.add_argument("--n", type=int, default=20)
+    pick = sub.add_parser("find-pick", help="직전 검색 결과 선택 또는 못 찾음 기록")
+    pick.add_argument("rank", help="결과 번호 또는 none")
+    pick.add_argument("--answer")
+    pick.add_argument("--open", action="store_true")
+    pick.add_argument("--save-eval", action="store_true")
+    pick.add_argument("--query")
+    fe = sub.add_parser("find-eval", help="파일명·본문 검색 평가")
+    fes = fe.add_subparsers(dest="find_eval_cmd", required=True)
+    fg = fes.add_parser("gen", help="자동 평가 질문 생성(기존 세트 교체)")
+    fg.add_argument("--n", type=int, default=40)
+    fg.add_argument("--seed", type=int, default=1)
+    fg.add_argument("--no-body", action="store_true", help="기존 이름·메타데이터 질문만 생성")
+    fr = fes.add_parser("run", help="같은 질문으로 기준선 비교")
+    fr.add_argument("--searcher", choices=["mdfind", "scan", "both", "find", "all"], default="both")
+    fr.add_argument("--k", type=int, default=5)
+    fa = fes.add_parser("add", help="수동 질문 추가")
+    fa.add_argument("query")
+    fa.add_argument("path")
+    fa.add_argument("--type", choices=findeval.TYPES, required=True)
+    for parser in (fg, fr, fa):
+        parser.add_argument("--set", dest="set_name", default="dev")
+    sub.add_parser("tidy", add_help=False, help="(별칭) ro organize로 합쳐짐 — 곧 사라집니다")  # 목록 표시용
+    sub.add_parser("organize", add_help=False,
+                   help="파일 분류·이름 정리(scan → show → apply → undo, 승인한 것만 이동)")  # 목록 표시용
+    # 아래 셋도 _run 맨 앞에서 먼저 갈라져 여기까지 오지 않는다. --help 목록에 보이게만 등록한다(RO-AUD-107)
+    sub.add_parser("license", add_help=False, help="pro 라이선스 키 상태·저장·지우기(이 Mac 안에서만 검사)")
+    sub.add_parser("learned", add_help=False, help="(ro pro) ro가 배운 것 보기·고정·끄기·지우기")
+    sub.add_parser("cards", add_help=False, help="(ro pro) 파일 카드 색인·폴더 건강검진(읽기 전용)")
+    st = sub.add_parser("storage", help="용량 감사(읽기 전용): 캐시·SQLite 빈 공간·오래 안 쓴 앱 크기")
+    st.add_argument("action", nargs="?", default="audit", choices=["audit", "builds"],
+                    help="builds: 오래 안 쓴 프로젝트의 .venv·node_modules 목록(ro pro, 읽기 전용)")
+    st.add_argument("--json", action="store_true")
+    st.add_argument("--top", type=int, default=10, help="구역마다 보여 줄 개수")
+    st.add_argument("--budget", type=float, default=60, help="크기 재기 시간 예산(초)")
+    st.add_argument("--no-apps", action="store_true", help="/Applications 사용 기록 조회 생략")
+    sub.add_parser("update", help="최신 버전으로 업데이트(uv tool·pipx 설치본은 upgrade, 저장소 체크아웃은 main일 때만 git pull)")
+    sub.add_parser("doctor", help="설치 상태·AI 도구(claude·agy) 점검. Codex는 ro connect의 공통 규칙 원본으로만 씀")
+    cn = sub.add_parser("connect", help="Claude Code·Codex·Antigravity에 공통 규칙·안전 훅 연결(미리 보기 → --yes로 적용 → undo)")
+    cn.add_argument("action", nargs="?", default="plan", choices=["plan", "undo"])
+    cn.add_argument("--yes", action="store_true", help="보여 준 계획을 적용")
+    cn.add_argument("--source", metavar="파일", help="공통 규칙 원본을 정한다(기본: ~/.codex/AGENTS.md가 있으면 그것)")
+    ho = sub.add_parser("handoff", help="AI 갈아타기: 하던 작업을 다른 AI 도구로 인수인계(미리 보기 → --yes로 적용)")
+    ho.add_argument("--from", dest="src", choices=list(handoff.FROM),
+                    help="넘겨줄 도구(기본: 가장 최근에 작업한 도구, mac은 웹 AI 등 이 Mac 활동 기록)")
+    ho.add_argument("--to", dest="dst", choices=list(handoff.NAMES), help="받을 도구(기본: 맨 앞·열려 있는 AI 앱)")
+    ho.add_argument("--list", action="store_true", help="도구별 최근 세션 목록만")
+    ho.add_argument("--session", metavar="ID", help="세션 ID 앞자리(기본: 가장 최근)")
+    ho.add_argument("--show", action="store_true", help="인수인계 문서 전체 보기")
+    ho.add_argument("--yes", action="store_true", help="저장 → 클립보드 → 받을 도구 열기")
+    ho.add_argument("--rate", choices=["ok", "miss"], help="넘긴 뒤 새 AI가 다시 설명 없이 맞혔나(ok)·다시 설명했나(miss)")
+    ac = sub.add_parser("activity", help="활동 기록 시험판: 앞 앱·웹 AI 탭 제목만 로컬에 남겨 인수인계에 붙임")
+    ac.add_argument("action", nargs="?", default="status", choices=["status", "on", "off", "pause", "today", "clear"])
+    ac.add_argument("--minutes", type=int, default=60, help="pause 시간(분)")
+    ac.add_argument("--yes", action="store_true", help="clear 확인")
+    su = sub.add_parser("setup", help="첫 실행·설정: 상태 보기, 스캔 폴더")
+    ssub = su.add_subparsers(dest="setup_cmd")  # 하위 명령 없이 `ro setup`이면 상태를 보여 준다
+    ss = ssub.add_parser("status", help="현재 설정 상태")
+    ss.add_argument("--json", action="store_true")
+    sr = ssub.add_parser("roots", help="스캔 폴더 관리")
+    sr.add_argument("action", nargs="?", default="list", choices=["list", "add", "remove"])  # 생략하면 목록
+    sr.add_argument("paths", nargs="*")
+    lg = sub.add_parser("log", help="이벤트 기록·조회")
+    lsub = lg.add_subparsers(dest="log_cmd")  # 하위 명령 없이 `ro log`면 오늘 요약
+    a = lsub.add_parser("add", help="이벤트 기록")
+    a.add_argument("kind")
+    a.add_argument("summary")
+    a.add_argument("--engine", choices=["claude", "codex", "agy"], help="codex는 예전 기록과 맞추려고 남김")
+    t = lsub.add_parser("tail", help="최근 이벤트")
+    t.add_argument("-n", type=int, default=10)
+    dl = lsub.add_parser("delete", help="기록 삭제(되돌릴 수 없음)")
+    dl.add_argument("--before", help="YYYY-MM-DD 이전만 삭제(생략하면 전부)")
+    dl.add_argument("--yes", action="store_true")
+    sm = lsub.add_parser("summary", help="일일 요약")
+    sm.add_argument("--date", default=time.strftime("%Y-%m-%d"))
+    pt = sub.add_parser("pet", help="코덱스 펫 스타일 데스크톱 오버레이 + 메뉴바 비서")
+    pt.add_argument("--port", type=int, default=0, help="로컬 서버 포트 (기본: 자동 할당)")
+    pt.add_argument("--browser", action="store_true", help="데스크톱 오버레이 대신 브라우저로 열기")
+    pt.add_argument("--no-wander", action="store_true", help="돌아다니기 끄기")
+    pt.add_argument("--status", action="store_true", help="현재 펫 표정·층 상태를 JSON으로 출력 후 종료")
+    pt.add_argument("--build", action="store_true", help="macOS 네이티브 오버레이 바이너리만 컴파일")
+    args = ap.parse_args(argv)
+
+    if args.cmd == "find-index":
+        from .findindex import Index
+        try:
+            with Index(config.HOME) as index:
+                if args.action == "clear":
+                    index.clear()
+                    print("본문 색인 삭제 완료")
+                elif args.action == "prune":
+                    print(f"본문 색인 {index.prune()}개 정리")
+                else:
+                    status = index.status()
+                    print(f"색인 파일 {status['files']}개 · OCR {status['ocr']}개 · DB {status['bytes']}바이트 · 미지원 {sum(status['unsupported'].values())}개")
+                    for reason, count in status['unsupported'].items():
+                        print(f"  {reason}: {count}개")
+        except (ValueError, OSError, sqlite3.Error) as error:
+            print(f"색인 관리 불가: {type(error).__name__}")
+            return 1
+        return 0
+    if args.cmd == "find-signals":
+        try:
+            if args.action in ("on", "off"):
+                findsignals.set_enabled(config.HOME, args.action == "on")
+                print("검색 신호: " + ("켜짐" if args.action == "on" else "꺼짐"))
+            elif args.action == "clear":
+                findsignals.clear(config.HOME)
+                print("검색 신호와 직전 검색 캐시를 삭제했습니다.")
+            elif args.action == "show":
+                _pos_int(args.n, "--n")
+                print(findsignals.show(config.HOME, args.n))
+            elif args.action == "summary":
+                print(json.dumps(findsignals.summary(config.HOME), ensure_ascii=False, indent=2))
+                print("MRR: 응답한 검색만 분모, 직접 알려준 정답의 표시 순위 포함. 미표시·못 찾음은 0. 재선택은 최신 응답만 반영.")
+            else:
+                print("검색 신호: " + ("켜짐" if findsignals.enabled(config.HOME) else "꺼짐"))
+                print(f"이벤트 {len(findsignals._events(config.HOME))}건 · 보존 90일 / 최대 5,000건(쓰기 때 정리) · 선택 캐시 30분")
+        except (ValueError, OSError):
+            print("검색 신호 관리 불가: 저장 경로·권한·파일 형식을 확인하세요.")
+            return 1
+        return 0
+    if args.cmd == "find-pick":
+        try:
+            rank = None if args.rank == "none" else int(args.rank)
+            if args.query is not None and not args.save_eval:
+                raise ValueError("--query는 --save-eval과 함께 사용하세요.")
+            if args.open and rank is None and args.answer is None:
+                raise ValueError("열 파일의 결과 번호 또는 --answer가 필요합니다.")
+            if args.save_eval and args.query is not None and (not args.query.strip() or log.redact(args.query) != args.query):
+                raise ValueError("평가 질문은 비밀값 없는 문장이어야 합니다.")
+            event, path = findsignals._record_pick(rank, args.answer, config.HOME)
+            print("선택을 기록했습니다." if rank is not None else "못 찾음을 기록했습니다.")
+            if args.save_eval:
+                if path is None:
+                    print("평가 등록에는 결과 번호 또는 --answer가 필요합니다.")
+                elif args.query is None:
+                    print('real 평가 세트에 등록하려면 --save-eval --query "직접 작성한 질문"을 함께 주세요.')
+                else:
+                    findeval.add(args.query, path, "real", home=config.HOME, set_name="real")
+                    print("real 평가 세트에 등록했습니다.")
+            if args.open:
+                selected = event["answer"] or event["selected"]
+                if selected["dataless"] or getattr(path.stat(), "st_flags", 0) & 0x40000000:
+                    print("내려받기 필요: 파일을 열지 않았습니다.")
+                elif find._safe_path(path) is None or not path.is_file():
+                    raise ValueError("열 파일이 바뀌었습니다. 다시 검색하세요.")
+                else:
+                    subprocess.run(["open", str(path)], check=True, capture_output=True, timeout=10)
+        except ValueError as exc:
+            # int() 오류에는 입력 원문이 포함되므로 고정 메시지로 바꾼다.
+            print("선택 불가: " + ("결과 번호 또는 none을 입력하세요." if str(exc).startswith("invalid literal") else str(exc)))
+            return 1
+        except (OSError, subprocess.SubprocessError):
+            print("선택 후 작업을 완료하지 못했습니다. 파일·저장 권한을 확인하세요.")
+            return 1
+        return 0
+    if args.cmd == "find":
+        if not args.query.strip():
+            raise SystemExit("검색어를 입력하세요.")
+        _pos_int(args.n, "--n")
+        _nonneg_float(args.budget, "--budget")
+        if args.root is not None:
+            _check_find_roots(args.root)
+        try:
+            started = time.perf_counter()
+            result = find.search(args.query, roots=args.root, limit=args.n, spotlight=not args.no_spotlight, body=args.body, budget=args.budget, home=config.HOME)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from None
+        except (OSError, sqlite3.Error):
+            raise SystemExit("검색 범위 또는 본문 색인을 확인하지 못했습니다.") from None
+        elapsed = (time.perf_counter() - started) * 1000
+        try:
+            # --root로 범위를 직접 준 검색은 데모·검증용이라 실제 사용 신호에 섞지 않는다.
+            recording = not args.root and findsignals.enabled(config.HOME)
+        except (OSError, ValueError):
+            recording = False
+        shown = []
+        def show(rows):
+            for number, row in enumerate(rows, len(shown) + 1 if recording else 1):
+                details = " · ".join(row["reasons"] + row["flags"])
+                print(f"{number}. {findeval.display_path(row['path'])} — {details}")
+                for sibling in row.get("siblings", []):
+                    print(f"   ↳ 비슷한 파일: {findeval.display_path(sibling['path'])} — 수정 {sibling['modified']}")
+                if row.get("snippet"):
+                    print(f"   {row['snippet']}")
+            shown.extend(rows)
+        show(result["results"])
+        notes = result["notes"]
+        if not shown and not result["relaxed"]:
+            notes = [n for n in notes if not n.startswith(("후보 ", "지원 범위:", "이름에 없어 "))]
+        for note in notes:
+            print(note)
+        for relaxed in result["relaxed"]:
+            print(relaxed["message"])
+            show(relaxed["results"])
+        if recording:
+            try:
+                event_id = findsignals.record_query(args.query, result, shown, elapsed, args.body, config.HOME)
+                if event_id:
+                    print("고르려면: ro find-pick 번호  /  못 찾음: ro find-pick none")
+            except (ValueError, OSError):
+                print("검색 신호를 저장하지 못했습니다. 저장 경로·권한을 확인하세요.")
+    elif args.cmd == "find-eval":
+        try:
+            roots = findeval.default_roots()
+            if args.find_eval_cmd == "gen":
+                _pos_int(args.n, "--n")
+                questions = findeval.gen(roots, args.n, args.seed, set_name=args.set_name, body=not args.no_body)
+                print(f"질문 {len(questions)}개 저장: {findeval.display_path(findeval._file(config.HOME, args.set_name))}")
+            elif args.find_eval_cmd == "add":
+                q = findeval.add(args.query, args.path, args.type, set_name=args.set_name)
+                print(f"추가: {q['type']} / {q['id']}")
+            else:
+                _pos_int(args.k, "--k")
+                questions = findeval.load_questions(set_name=args.set_name)
+                if not questions:
+                    raise ValueError("평가 질문이 없습니다. 먼저 ro find-eval gen을 실행하세요.")
+                searchers = {"mdfind": findeval.mdfind_name, "scan": lambda q: findeval.scan_name(q, roots),
+                             "find": find.searcher(roots, home=config.HOME)}
+                for name, searcher in searchers.items():
+                    if args.searcher in (name, "all") or args.searcher == "both" and name != "find":
+                        print(name)
+                        print(findeval.report(findeval.run(searcher, questions, args.k, roots=roots,
+                                                           moves=findeval.relocations())))
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from None
+        except OSError:
+            raise SystemExit("평가 파일을 읽거나 저장하지 못했습니다.") from None
+    elif args.cmd == "map":
+        if args.roots is not None:
+            for r in args.roots:
+                s = str(r).strip()
+                if not s:
+                    raise SystemExit("스캔할 폴더 경로가 비어 있습니다.")
+                p = Path(s).expanduser()
+                if not p.exists():
+                    raise SystemExit(f"폴더가 없습니다: {r}")
+                if not p.is_dir():
+                    raise SystemExit(f"폴더가 아닙니다: {r}")
+        data = mapper.build_map(args.roots or mapper.default_roots())
+        try:
+            out = mapper.save_map(data, args.out)
+        except (OSError, ValueError):
+            raise SystemExit(f"지도를 저장할 수 없습니다: {args.out}") from None
+        print(f"프로젝트 {len(data['projects'])}개 → {findeval.display_path(out)}")
+        log.append("map", f"프로젝트 {len(data['projects'])}개 스캔",
+                   {"roots": data["roots"], "out": str(out)})
+    elif args.cmd == "update":
+        raise SystemExit(selfupdate.update())
+    elif args.cmd == "doctor":
+        raise SystemExit(selfupdate.doctor())
+    elif args.cmd == "connect":
+        raise SystemExit(engines.connect_cli(args.action, args.yes, args.source))
+    elif args.cmd == "activity":
+        if args.action == "pause" and not (1 <= args.minutes <= 10080):
+            raise SystemExit("--minutes 값은 1~10080(7일) 사이여야 합니다.")
+        raise SystemExit(activity.cli(args.action, args.minutes, args.yes))
+    elif args.cmd == "handoff" and args.rate:
+        res = handoff.rate(args.rate == "ok")
+        if not res.get("ok"):
+            raise SystemExit(res.get("error", "평가할 인수인계 기록이 없습니다."))
+        print("평가를 남겼어요(시험판 성공 기준에 쓰여요). 지금까지: ro activity status")
+    elif args.cmd == "handoff":
+        raise SystemExit(handoff.cli(args.src, args.dst, args.session, args.yes, list_only=args.list, show=args.show))
+    elif args.cmd == "setup":
+        try:
+            if args.setup_cmd in ("status", None):
+                st = setup_mod.status()
+                print(json.dumps(st, ensure_ascii=False) if getattr(args, "json", False) else setup_mod.render(st))
+            elif args.setup_cmd == "roots":
+                if args.action == "add":
+                    roots = setup_mod.add_roots(args.paths)
+                elif args.action == "remove":
+                    roots = setup_mod.remove_roots(args.paths)
+                else:
+                    roots = mapper.default_roots()
+                print("\n".join(roots) or "(없음)")
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
+    elif args.cmd == "audit":
+        findings, fixed = harden.audit(fix=args.fix)
+        for f in findings:
+            print(f"- {f}")
+        if fixed:
+            print(f"권한 조정 {len(fixed)}건")
+        print("이상 없음" if not findings else f"발견 {len(findings)}건")
+        log.append("audit", f"발견 {len(findings)}건, 조정 {len(fixed)}건")
+        raise SystemExit(1 if [f for f in findings if "권한" not in f or not args.fix] else 0)
+    elif args.cmd == "storage":
+        _pos_int(args.top, "--top")
+        _nonneg_float(args.budget, "--budget")
+        if args.action == "builds":
+            if os.environ.get("RO_EDITION") != "pro":
+                print("ro pro 전용 기능입니다(RO_EDITION=pro).", file=sys.stderr)
+                return 2
+            items = storage.dead_builds(budget=args.budget)
+            if args.json:
+                print(json.dumps(items, ensure_ascii=False, indent=1))
+            else:
+                for x in items[:args.top]:
+                    print(f"  {storage.human(x['bytes']):>8}  {x['project']}/{Path(x['path']).name}"
+                          f"  ({x['idle_days']}일 안 바뀜{', 잠금 파일 있음' if x['lock'] else ''})")
+                print(f"{len(items)}개 · 합계 {storage.human(sum(x['bytes'] for x in items))}. 읽기 전용입니다. "
+                      "격리는 펫의 확인 카드에서 승인한 것만 합니다.")
+            return 0
+        report = storage.audit(budget=args.budget, apps=not args.no_apps)
+        print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else storage.render(report, args.top))
+        log.append("storage", f"캐시 {storage.human(report['cache_total'])}, SQLite 빈 공간 {len(report['sqlite'])}개")
+    elif args.cmd == "eval":
+        results = harden.evaluate()
+        for name, ok in results:
+            print(f"{'PASS' if ok else 'FAIL'}  {name}")
+        failed = [n for n, ok in results if not ok]
+        log.append("eval", f"{len(results) - len(failed)}/{len(results)} 통과",
+                   {"failed": failed})
+        raise SystemExit(1 if failed else 0)
+    elif args.cmd == "log":
+        try:
+            if args.log_cmd == "add":
+                e = log.append(args.kind, args.summary, engine=args.engine)
+                print(f"기록: {e['ts']} [{e['kind']}] {e['summary']}")
+            elif args.log_cmd == "tail":
+                _pos_int(args.n, "-n")
+                for e in log.read(time.strftime("%Y-%m-%d"))[-args.n:]:
+                    print(f"{e['ts']} [{e['kind']}] {e['summary']}")
+            elif args.log_cmd == "delete":
+                if not args.yes:
+                    raise SystemExit("기록을 삭제합니다(되돌릴 수 없음). 확인하려면 --yes를 붙이세요.")
+                print(f"기록 파일 {log.delete(args.before)}개 삭제")
+            else:
+                print(log.summarize(getattr(args, "date", None) or time.strftime("%Y-%m-%d")))
+        except (ValueError, OSError) as exc:
+            raise SystemExit(str(exc)) from None
+    elif args.cmd == "pet":
+        if not 0 <= args.port <= 65535:
+            raise SystemExit("--port 값은 0~65535 사이여야 합니다.")
+        if args.status:
+            st = pet.PetRuntime().snapshot()
+            print(json.dumps(st, ensure_ascii=False, indent=2))
+            return
+        if args.build:
+            out = pet.launch(build_only=True)
+            print(f"macOS 오버레이 빌드 완료: {out}")
+            return
+        pet.launch(port=args.port, mode="browser" if args.browser else "overlay",
+                   wander=not args.no_wander)
+    else:
+        path = Path(args.map).expanduser()
+        if not path.exists():
+            raise SystemExit("지도가 없습니다. 먼저 `ro map`을 실행하세요.")
+        try:
+            data = json.loads(path.read_text())
+            print(f"생성: {data['generated_at']}")
+            print("도구: " + ", ".join(t for t, p in data["tools"].items() if p))
+            for p in data["projects"]:
+                git = p.get("git") or {}
+                langs = ",".join(dict.fromkeys([*p.get("markers", []), *p["languages"]])) or "-"
+                print(f"- {p['name']}  [{langs}]  {git.get('branch') or '-'}  {findeval.display_path(p['path'])}")
+                purpose = (p.get("summary") or {}).get("purpose")
+                if purpose:
+                    print(f"    {purpose}")
+        except (OSError, ValueError, KeyError, TypeError):
+            raise SystemExit(f"지도를 읽을 수 없습니다: {args.map}") from None
+
+
+if __name__ == "__main__":
+    main()

@@ -1,86 +1,79 @@
-# ro.bot pet
+# ro
 
-A small desktop pet made of three layers and two eyes. It is only for decorating your Mac: it does not read your files or record anything. The only thing it contacts is GitHub, once a day, to check for a new version (the installed app only; nothing about you is sent).
+A local-first desktop pet and Mac assistant made of three layers and two eyes.
 
-- Two materials: **Clay** and **Glass** (on macOS 26 the glass refracts what is behind it)
-- Body color: System, Light, Dark, Orange; panel color: System, Light, Dark
-- Three sizes: Small, Medium, Big
-- Six expressions and fourteen motions to play with (press, startle, drag, shake, land …)
-- Drag it anywhere, drag it to the top to send it to the menu bar, and let it wander along the bottom of the screen
-- No dependencies. Python standard library plus one Swift file. The pet itself talks only to `127.0.0.1`.
+- **Free (`mini`)**: Desktop pet with **Clay** and **Glass** materials (native macOS 26 refraction), 4 body colors, 3 sizes, 6 expressions, 14 motions, screen-bottom wandering, app reactions, and menu bar mode.
+- **Licensed (`pro`)**: Unlocks full `ro` features inside the same app — ask for files by name, date, or inside text (`⌥R`, including offline Vision OCR), tidy Downloads with one-step undo (holding folder, never hard-deleted), hand off work between AI tools (Claude Code, Codex, Antigravity), and manage shared AI rules & safety hooks.
 
-## Install (macOS app)
+## Privacy & Network Scope
 
-1. Download the latest `ro-pet-<version>.dmg` from the Releases page and open it.
-2. Drag **ro** onto **Applications**, then open it from Applications. It lives in the menu bar (no Dock icon).
+All files, search indexes, OCR, logs, and activity stay strictly on your Mac (`~/.ro`).
 
-Apple Silicon (M1 or later) only. Releases that are not notarized show a warning the first time, because the app is not signed with a paid Apple Developer ID. The pet is safe to run: the source is in this repository, it talks only to `127.0.0.1`, and the app contacts GitHub only to check for updates. To open it anyway:
+- **App updates**: The packaged macOS app checks GitHub Releases once a day via Sparkle (`appcast.xml`). Nothing about you is sent.
+- **Pro license auto-pickup (`ro/licensenet.py`)**: The **only** file in `ro/` allowed to make outbound requests (verified automatically by `ro/harden.py`). When you start checkout from inside ro (`Upgrade to Pro` / `Get pro…`) or while Pro is active (once a day for renewal), it sends **only** a random per-Mac install ID to the license issuer — never files, paths, names, or email. You can turn this off anytime in **License key → Get my key automatically**, and offline key paste works without internet.
 
-- **macOS 15 or later:** double-click the app, click **Done** on the warning, open **System Settings → Privacy & Security**, scroll down, click **Open Anyway** next to "ro", and confirm.
-- **macOS 13–14:** right-click (or Control-click) the app, choose **Open**, then **Open** again.
-- **Terminal alternative:** `xattr -dr com.apple.quarantine /Applications/ro.app`
+## Install (macOS App — Recommended)
 
-Not on Apple Silicon, or prefer no installer? Use the commands below.
+1. Download the latest `ro-pet-<version>.dmg` from the [Releases](https://github.com/rhochoi/ro-pet/releases/latest) page and open it.
+2. Drag **ro** onto **Applications**, then open it from Applications. It runs in the menu bar (no Dock icon).
 
-## Run
+Apple Silicon (M1 or later) and macOS 13+ required. The packaged app bundles a standalone Python runtime, the precompiled Swift pet host, the precompiled Vision OCR helper, and Sparkle auto-updates — no Python or Xcode needed.
 
-macOS (needs Xcode command line tools for `swiftc`):
+To unlock **ro pro**, click the pet to open the panel → **Upgrade to Pro** (or **License key**), or use the menu bar icon → **Get pro…** / **License…**.
 
-```bash
-python3 -m ro_pet
-```
+## Run from Source / CLI
 
-Any OS, in a browser tab (no overlay, no menu bar):
+Requires Python 3.11+ (macOS needs Xcode Command Line Tools for `swiftc` when running from source):
 
 ```bash
-python3 -m ro_pet --browser
+python3 -m ro pet           # Desktop pet + menu bar overlay (macOS)
+python3 -m ro pet --browser # Browser mode (any OS)
+python3 -m ro_pet           # Compatibility alias
+python3 -m ro --help        # Full CLI (find, organize, tidy, handoff, connect, license, ...)
 ```
 
-Options: `--no-wander`, `--port N`, `--build-only`.
-
-Click the pet to open the panel, right-click it for the menu. Settings are saved to `~/.ro-pet/config.json` (override the folder with `RO_PET_HOME`).
-
-## Build a DMG (macOS, Apple Silicon)
-
-Bundles the Swift host and a standalone Python, so users need neither. Needs `swiftc` and [`uv`](https://astral.sh/uv).
+Install the CLI globally via `uv`:
 
 ```bash
-./scripts/build-dmg.sh    # build/ro-pet-<version>.dmg, ad-hoc signed (friends only)
+curl -fsSL https://raw.githubusercontent.com/rhochoi/ro-pet/main/install.sh | bash
 ```
 
-For public release, sign with a Developer ID certificate and notarize (credentials stay in your keychain):
+## Build & Commercial Release (macOS, Apple Silicon)
+
+Needs `swiftc` and [`uv`](https://astral.sh/uv).
 
 ```bash
-xcrun notarytool store-credentials "ro-notary"    # once
-SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" NOTARY_PROFILE=ro-notary ./scripts/build-dmg.sh
+# 1. Run preflight checks (tests, network guard, release config)
+./scripts/release-preflight.sh
+
+# 2. Local verification DMG (ad-hoc signed, this Mac only)
+./scripts/build-dmg.sh
+
+# 3. Signed & notarized commercial DMG + Sparkle appcast
+APP_VERSION=0.4.0 \
+  SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" \
+  NOTARY_PROFILE=ro-notary \
+  RO_LICENSE_ISSUER="https://license.yourdomain.com" \
+  ./scripts/build-dmg.sh
+./scripts/make-appcast.sh build/ro-pet-0.4.0.dmg
 ```
 
-## Updates and releases
-
-The installed app updates itself with [Sparkle](https://sparkle-project.org): once a day it reads `appcast.xml` from the latest release of this repository and, if a newer version exists, downloads and installs it and reopens. "Check for updates…" in the menu does it right away.
-
-To publish a release (the maintainer's machine; the update-signing key stays in the keychain):
-
-```bash
-APP_VERSION=0.3.2 SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" NOTARY_PROFILE=ro-notary ./scripts/build-dmg.sh
-./scripts/make-appcast.sh build/ro-pet-0.3.2.dmg      # build/appcast.xml (editing the DMG afterwards breaks the signature)
-gh release create v0.3.2 build/ro-pet-0.3.2.dmg build/appcast.xml --repo rhochoi/ro-pet --title "ro pet v0.3.2" --notes "..."
-```
-
-`APP_VERSION` must be bigger than the last release: Sparkle compares that number.
+See [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md) for the complete end-to-end commercial launch checklist (Polar checkout, Cloudflare Worker issuer, Resend email, custom domain, Apple notarization, Sparkle updates, and GitHub Pages).
 
 ## Test
 
 ```bash
-python3 -m unittest discover -s tests -t .
+pytest -q
 ```
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `ro_pet/server.py` | Loopback web server: state, saved look, motion trigger |
-| `ro_pet/page.html` | The whole pet UI (HTML, CSS, JS) |
-| `ro_pet/pet_mac.swift` | macOS host: transparent window, menu bar icon, native glass, size, login item, Sparkle updates |
-| `assets/icon/` | App icon (`ro.svg` source, `ro.icns` built from it) |
-| `scripts/` | `build-app.sh`, `build-dmg.sh` (sign, notarize), `make-appcast.sh` (update list) |
+| `ro/` | Full `ro` package: desktop pet (`pet.py`, `pet_mac.swift`, `pet_ui/`), file search & OCR (`find*.py`, `ocr.py`, `ocr_mac.swift`), Downloads organizer (`organize.py`, `staging.py`, `journal.py`), AI handoff (`handoff.py`, `engines.py`), offline Ed25519 licensing (`license.py`, `_ed25519.py`), scoped auto-pickup (`licensenet.py`), security guards (`harden.py`, `fsguard.py`) |
+| `ro_pet/` | Thin backward-compatibility entry point (`python3 -m ro_pet`) forwarding to `ro.pet` |
+| `site/` | Zero-tracker static website (`/`, `/pro/`, `/thanks/`, `/license/`, `/privacy/`, `/terms/`, `/refund/`) |
+| `issuer/` | Cloudflare Worker license issuer (Polar checkout + webhook signature verification + Ed25519 signing + KV + Resend email) |
+| `scripts/` | `build-app.sh`, `build-dmg.sh`, `make-appcast.sh`, `license-tool.py`, `release-preflight.sh` |
+| `identity/` | Shared principles used by `ro connect` / `ro.adapters` |
+| `tests/` | Full unit, security, site, issuer, design-system, and payment UI test suite |

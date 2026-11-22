@@ -4,14 +4,18 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ro-pet"
-version = "0.3.3"
-description = "A desktop pet made of three layers and two eyes. Decorate your Mac."
+version = "0.4.0"
+description = "ro — desktop pet and local-first Mac assistant (free mini & licensed pro)"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+serial = ["pyserial"]
+
 [project.scripts]
+ro = "ro.cli:main"
 ro-pet = "ro_pet.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ro_pet"]
+packages = ["ro", "ro_pet"]

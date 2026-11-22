@@ -1,2 +1,4 @@
-"""ro.bot pet (lite): a desktop pet made of three layers and two eyes, for decorating your Mac."""
-__version__ = "0.1.0"
+"""Compatibility package for `python3 -m ro_pet` (delegates to the full `ro` package)."""
+from ro import pet
+
+__all__ = ["pet"]

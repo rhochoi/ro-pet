@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: bash scripts/delegate.sh [--dry-run] agy <brief-file>
+  agy:   agy -p -- BRIEF (default permissions)
+  --dry-run: validate and show command without invoking an engine or writing logs
+  --help: show this help
+EOF
+}
+
+dry_run=false
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    --dry-run) dry_run=true; shift ;;
+esac
+if [[ $# -ne 2 ]]; then usage >&2; exit 2; fi
+engine=$1
+brief=$2
+case "$engine" in
+    agy) ;;
+    *) usage >&2; exit 2 ;;
+esac
+if [[ ! -f "$brief" || ! -r "$brief" ]]; then
+    printf 'Error: brief must be a readable file\n' >&2
+    exit 2
+fi
+[[ "$brief" = /* ]] || brief="$PWD/$brief"
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd -- "$root"
+engine=$(python3 -c '
+import sys
+from pathlib import Path
+from ro.log import redact
+
+try:
+    text = Path(sys.argv[2]).read_text(encoding="utf-8")
+except (OSError, UnicodeError):
+    sys.exit("Error: cannot read brief as UTF-8")
+if not text.strip() or redact(text) != text:
+    sys.exit("Error: brief must be nonempty and contain no secrets; use masked text")
+print(sys.argv[1])
+' "$engine" "$brief")
+if "$dry_run"; then
+    printf 'agy -p -- BRIEF (dry-run; default permissions)\n'
+    exit 0
+fi
+if ! command -v "$engine" >/dev/null 2>&1; then
+    printf 'Error: %s is not installed\n' "$engine" >&2
+    exit 127
+fi
+
+umask 077
+mkdir -p .ro-delegate
+# macOS(BSD) mktemp는 X 뒤에 접미사가 붙으면 X를 바꾸지 않으므로 X로 끝나게 만든 뒤 .log를 붙인다.
+log=$(mktemp ".ro-delegate/$(date -u +%Y%m%dT%H%M%SZ).XXXXXX")
+mv -n "$log" "$log.log"
+log="$log.log"
+command=(agy -p -- "$(< "$brief")")
+input=/dev/null
+set +e
+"${command[@]}" < "$input" 2>&1 | python3 -c '
+import sys
+from collections import deque
+from ro.log import redact
+
+tail = deque(maxlen=40)
+private_key = False
+# shortcut: known secret patterns only; extend ro.log.redact when new formats appear.
+with open(sys.argv[1], "w", encoding="utf-8") as log:
+    for line in sys.stdin:
+        if "-----BEGIN " in line and "PRIVATE KEY-----" in line:
+            private_key = True
+        if private_key:
+            if "-----END " in line and "PRIVATE KEY-----" in line:
+                private_key = False
+            line = "[REDACTED]\n"
+        else:
+            line = redact(line)
+        log.write(line)
+        tail.append(line)
+footer = "\nLog: " + sys.argv[1] + "\n"
+budget = 4096 - len(footer.encode("utf-8"))
+preview = "".join(tail).encode("utf-8")[-budget:].decode("utf-8", errors="ignore")
+sys.stdout.write(preview + footer)
+' "$log"
+status=("${PIPESTATUS[@]}")
+if [[ ${status[1]} -ne 0 ]]; then exit "${status[1]}"; fi
+exit "${status[0]}"

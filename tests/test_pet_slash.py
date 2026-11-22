@@ -1,0 +1,262 @@
+"""입력창 '/' 자동완성과 AI 도구 연결 창 (개발용, playwright 있을 때만)."""
+import os
+
+os.environ.setdefault("RO_LANG", "source")  # 화면 문구는 번역 전 원문으로 검사한다
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from ro import activity, engines, handoff, pet
+from tests._pet_browser import launch_chromium
+
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:  # 선택 의존성
+    sync_playwright = None
+
+
+@unittest.skipUnless(sync_playwright, "playwright 필요")
+class SlashTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.tmp.cleanup)
+        rt = pet.PetRuntime(home=cls.tmp.name, log_dir=cls.tmp.name, map_path=str(Path(cls.tmp.name) / "map.json"))
+        cls.server = pet.start_server(rt)
+        cls.addClassCleanup(cls.server.server_close)
+        cls.addClassCleanup(cls.server.shutdown)
+        cls.url = "http://127.0.0.1:%d/" % cls.server.server_address[1]
+        cls.pw = sync_playwright().start()
+        cls.addClassCleanup(cls.pw.stop)
+        cls.browser = launch_chromium(cls.pw)
+        cls.addClassCleanup(cls.browser.close)
+        fake = [{"id": "claude", "name": "Claude Code", "cli": True, "cli_name": "claude", "app": "Claude.app",
+                 "rules": True, "rules_path": "~/.claude/CLAUDE.md", "hook": False},
+                {"id": "codex", "name": "Codex", "cli": False, "cli_name": "codex", "app": None,
+                 "rules": False, "rules_path": "~/.codex/AGENTS.md", "hook": None}]
+        cls.patches = [mock.patch.object(engines, "status", return_value=fake),
+                       mock.patch.object(engines, "handoff", return_value={"ok": True, "mode": "app", "name": "Claude Code",
+                                                                           "opened": True, "copied": True}),
+                       mock.patch.object(engines, "connect_plan", return_value={"ok": True, "id": "p1", "items": [], "notes": []}),
+                       mock.patch.object(engines, "connect_apply", return_value={"ok": True, "applied": 1}),
+                       mock.patch.object(engines, "connect_undo", return_value={"ok": True, "reverted": 1, "kept": []})]
+        started = []
+        for p in cls.patches:
+            started.append(p.start())
+            cls.addClassCleanup(p.stop)
+        cls.handoff, cls.plan, cls.apply = started[1], started[2], started[3]
+
+    def setUp(self):
+        self.handoff.reset_mock()
+        self.apply.reset_mock()
+        self.plan.return_value = {"ok": True, "id": "p1", "items": [], "notes": []}
+        self.page = self.browser.new_context(viewport={"width": 900, "height": 760}, reduced_motion="reduce").new_page()
+        self.page.goto(self.url)
+        self.page.wait_for_selector("#stage")
+        self.page.evaluate("setBubbleOpen(true)")
+        self.page.click("#askInput")
+
+    def tearDown(self):
+        self.page.context.close()
+
+    def labels(self):
+        return self.page.eval_on_selector_all("#slashPop .pal-item b", "els => els.map(e => e.textContent)")
+
+    def test_slash_lists_all_commands_and_filters_by_alias_and_choseong(self):
+        p = self.page
+        p.keyboard.type("/")
+        self.assertFalse(p.locator("#slashPop").is_hidden())
+        self.assertEqual(p.get_attribute("#askInput", "aria-expanded"), "true")
+        self.assertIn("/연결", self.labels())
+        for typed, want in (("cl", "/claude"), ("클", "/claude"), ("ㅇㄱ", "/연결"), ("기로", "/기록"), ("anti", "/agy")):
+            with self.subTest(typed=typed):
+                p.fill("#askInput", "/" + typed)
+                self.assertEqual(self.labels()[0], want)
+        p.fill("#askInput", "/zzz")
+        self.assertIn("맞는 명령이 없어요", p.inner_text("#slashPop"))
+
+    def test_selected_row_stays_visible_inside_the_popup(self):
+        # 2026-10-31 네이티브 확인: 말풍선이 열리는 중에 치면 목록이 맨 아래로 스크롤돼 선택 줄이 안 보였다
+        p = self.page
+        p.keyboard.type("/")
+        visible = """() => { const pop = document.getElementById('slashPop'), sel = pop.querySelector('[aria-selected=true]');
+          const foot = pop.querySelector('.pal-foot').offsetHeight;
+          return sel.offsetTop >= pop.scrollTop && sel.offsetTop + sel.offsetHeight <= pop.scrollTop + pop.clientHeight - foot; }"""
+        self.assertEqual(p.evaluate("document.getElementById('slashPop').scrollTop"), 0)
+        self.assertTrue(p.evaluate(visible))
+        p.keyboard.press("ArrowUp")                       # 맨 위에서 위로 → 마지막 줄
+        self.assertTrue(p.evaluate(visible))
+        self.assertEqual(p.evaluate("window.scrollY"), 0)  # 목록만 움직이고 페이지는 그대로
+
+    def test_keyboard_navigate_tab_completes_escape_closes(self):
+        p = self.page
+        p.keyboard.type("/")
+        first = p.get_attribute("#askInput", "aria-activedescendant")
+        p.keyboard.press("ArrowDown")
+        self.assertNotEqual(p.get_attribute("#askInput", "aria-activedescendant"), first)
+        p.fill("#askInput", "/기")
+        p.keyboard.press("Tab")
+        self.assertEqual(p.input_value("#askInput"), "/기록 ")
+        self.assertEqual(self.labels(), ["/기록"])  # 내용을 쓰는 동안은 그 명령 한 줄
+        p.keyboard.press("Escape")
+        self.assertTrue(p.locator("#slashPop").is_hidden())
+        self.assertFalse(p.locator("#bubble.hidden").count())  # esc는 목록만 닫는다
+
+    def test_enter_runs_command_without_argument(self):
+        p = self.page
+        p.keyboard.type("/연")
+        p.keyboard.press("Enter")
+        p.wait_for_selector("#connWin:not([hidden]) .conn-row")
+        self.assertEqual(p.input_value("#askInput"), "")
+        rows = p.locator("#connWin .conn-row")
+        self.assertEqual(rows.count(), 2)
+        self.assertIn("✓ 앱", rows.nth(0).inner_text())
+        self.assertIn("– 안전 훅", rows.nth(0).inner_text())
+        self.assertTrue(rows.nth(1).locator("button").is_disabled())  # 앱도 CLI도 없으면 누를 수 없다
+        self.assertEqual(p.evaluate("document.activeElement.textContent"), "열기")
+        p.keyboard.press("Escape")
+        self.assertTrue(p.locator("#connWin").is_hidden())
+        self.assertEqual(p.evaluate("document.activeElement.id"), "askInput")
+
+    def test_connectable_items_show_badge_then_approve_and_undo(self):
+        self.plan.return_value = {"ok": True, "id": "p2", "notes": [], "items": [
+            {"engine": "agy", "kind": "symlink", "path": "~/.gemini/AGENTS.md", "desc": "Antigravity 규칙 링크"}]}
+        p = self.page
+        p.evaluate("checkConnect()")
+        p.wait_for_selector("#tabBtnSettings .conn-badge")
+        self.assertEqual(p.inner_text("#tabBtnSettings .conn-badge"), "1")
+        p.fill("#askInput", "/연결")
+        p.keyboard.press("Enter")
+        p.wait_for_selector("#connWin .conn-plan")
+        self.assertIn("아직 아무것도 바뀌지 않았어요", p.inner_text("#connWin .conn-plan"))
+        self.apply.assert_not_called()                     # 보여 주기만 하고 승인 전에는 쓰지 않는다
+        self.assertEqual(p.evaluate("document.activeElement.textContent"), "승인하고 연결")
+        self.plan.return_value = {"ok": True, "id": "p3", "items": [], "notes": []}
+        p.keyboard.press("Enter")
+        p.wait_for_function("document.querySelector('#toast').innerText.includes('연결했어요')")
+        self.apply.assert_called_once_with("p2")
+        p.wait_for_selector("#tabBtnSettings .conn-badge", state="detached")
+        p.click("#toast >> text=되돌리기")
+        p.wait_for_function("document.querySelector('#toast').innerText.includes('되돌렸어요')")
+
+    def test_escape_closes_conn_window_even_without_focus_inside(self):
+        p = self.page
+        with mock.patch.object(engines, "status", side_effect=OSError("x")):   # 서버 오류: 창에 버튼이 없다
+            p.evaluate("openConn('')")
+            p.wait_for_selector("#connWin:not([hidden])")
+            p.focus("#askInput")
+            p.keyboard.press("Escape")
+        self.assertTrue(p.locator("#connWin").is_hidden())
+        self.assertFalse(p.locator("#bubble.hidden").count())   # 말풍선은 그대로
+
+    def test_badge_text_has_enough_contrast(self):
+        self.plan.return_value = {"ok": True, "id": "p9", "notes": [], "items": [{"kind": "x", "path": "p", "desc": "d"}]}
+        self.page.evaluate("checkConnect()")
+        self.page.wait_for_selector("#tabBtnSettings .conn-badge")
+        bg = self.page.eval_on_selector("#tabBtnSettings .conn-badge", "e => getComputedStyle(e).backgroundColor")
+        self.assertEqual(bg, "rgb(188, 47, 14)")  # --accent-text #BC2F0E, 흰 글자 5.9:1
+        self.assertEqual(self.page.get_attribute("#tabBtnSettings", "aria-label"), "Settings, 연결할 항목 1개")
+        self.plan.return_value = {"ok": True, "id": "p0", "notes": [], "items": []}
+        self.page.evaluate("checkConnect()")
+        self.page.wait_for_selector("#tabBtnSettings .conn-badge", state="detached")
+        self.assertIsNone(self.page.get_attribute("#tabBtnSettings", "aria-label"))
+
+    def test_resizing_the_browser_keeps_bubble_on_screen(self):
+        # 2026-10-31 감사: 펫을 옮긴 뒤 창을 줄이면 말풍선이 화면 밖(left<0)으로 나갔다
+        p = self.page
+        p.evaluate("moveStageBy(-300, 0)")
+        p.set_viewport_size({"width": 520, "height": 760})
+        # 고정 시간(100ms)만 기다리면 느린 CI에서 resize 처리 전에 읽어 -150으로 실패했다(2026-10-31).
+        # 들어올 때까지 기다리되, 끝내 안 들어오면 시간 초과 뒤 아래 단언이 실패한다
+        try:
+            p.wait_for_function("document.querySelector('#bubble').getBoundingClientRect().left >= 0", timeout=3000)
+        except Exception:
+            pass
+        left = p.eval_on_selector("#bubble", "e => e.getBoundingClientRect().left")
+        self.assertGreaterEqual(left, 0)
+
+    def test_cli_hint_in_conn_window_does_not_wrap_mid_command(self):
+        self.plan.return_value = {"ok": True, "id": "p5", "notes": [], "items": [], "source": "~/.codex/AGENTS.md"}
+        p = self.page
+        p.evaluate("openConn('')")
+        p.wait_for_selector("#connWin code")
+        ws = p.eval_on_selector_all("#connWin .conn-note code", "els => els.map(e => getComputedStyle(e).whiteSpace)")
+        self.assertEqual(ws, ["nowrap", "nowrap"])
+
+    def test_engine_command_with_text_hands_off(self):
+        p = self.page
+        p.fill("#askInput", "/클로드 이 함수 설명해줘")
+        p.keyboard.press("Enter")
+        p.wait_for_function("document.querySelector('#toast').innerText.includes('열었어요')")
+        self.handoff.assert_called_once_with("claude", "이 함수 설명해줘")
+
+    def test_plain_question_guide_offers_handoff_window(self):
+        p = self.page
+        p.fill("#askInput", "이 저장소 구조 설명해줘")
+        p.keyboard.press("Enter")
+        p.click("#sendEngineBtn")
+        p.wait_for_selector("#connWin:not([hidden]) .conn-row")
+        self.assertIn("이 저장소 구조 설명해줘", p.inner_text("#connPending"))
+        p.click("#connWin >> text=넘기기")
+        p.wait_for_function("document.querySelector('#toast').innerText.includes('열었어요')")
+        self.handoff.assert_called_once_with("claude", "이 저장소 구조 설명해줘")
+
+    def test_relay_command_previews_then_hands_off_only_on_click(self):
+        p = self.page
+        plan = {"ok": True, "id": "h1", "src_name": "Antigravity", "dst_name": "Claude Code", "updated": "2026-10-31 10:00",
+                "cwd": "/p", "chars": 900, "masked": True, "notes": ["규칙 연결 안내"], "title": "결제 화면",
+                "src": "agy", "dst": "claude", "why": ["받을 도구: 맨 앞에 열린 Claude Code"],
+                "others": [{"engine": "codex", "engine_name": "Codex", "id": "s2", "updated": "2026-10-25 00:47",
+                            "title": "펫 위젯", "requests": 6}],
+                "counts": {"requests": 3, "files": 2, "commands": 5, "artifacts": 1}}
+        with mock.patch.object(handoff, "plan_for_pet", return_value=plan) as pl, \
+                mock.patch.object(handoff, "apply_for_pet", return_value={"ok": True, "mode": "app", "opened": True,
+                                                                          "name": "Claude Code"}) as ap:
+            p.fill("#askInput", "/갈아타기 제미나이 클로드")
+            p.keyboard.press("Enter")
+            p.wait_for_function("document.querySelector('#toast').innerText.includes('인수인계')")
+            text = p.inner_text("#toast")
+            for want in ("Antigravity → Claude Code", "요청 3", "비밀값은 가림", "규칙 연결 안내"):
+                self.assertIn(want, text)
+            pl.assert_called_once_with("제미나이 클로드", "")
+            self.assertIn("자동 선택 · 받을 도구: 맨 앞에 열린 Claude Code", text)
+            self.assertIn("Codex · 10-25 00:47 · 펫 위젯 (요청 6)", text)
+            p.click("#toast >> text=펫 위젯")              # 다른 도구의 세션으로 다시 미리 보기
+            p.wait_for_function("document.querySelector('#toast').innerText.includes('인수인계')")
+            pl.assert_called_with("codex claude", "s2")
+            p.click("#toast >> text=반대로")                # 방향 바꾸기
+            p.wait_for_function("document.querySelector('#toast').innerText.includes('인수인계')")
+            pl.assert_called_with("claude agy", "")
+            ap.assert_not_called()                      # 누르기 전에는 넘기지 않는다
+            with mock.patch.object(handoff, "preview_for_pet", return_value={"ok": True, "doc": "# 본문 미리 보기"}):
+                p.click("#toast >> text=내용 보기")
+                p.wait_for_selector(".relay-doc:not([hidden])")
+                self.assertEqual(p.inner_text(".relay-doc"), "# 본문 미리 보기")
+            ap.assert_not_called()                      # 본문을 봐도 넘기지 않는다
+            p.click("#toast >> text=Claude Code로 넘기기")
+            p.wait_for_function("document.querySelector('#toast').innerText.includes('열었어요')")
+            ap.assert_called_once_with("h1")
+
+    def test_activity_card_shows_what_is_recorded_and_toggles(self):
+        p = self.page
+        off = {"on": False, "paused_until": 0, "days": 0, "stalled": False, "browser": None, "error": None,
+               "handoffs_with_activity": 0, "rated_ok": 0, "rated_miss": 0, "since": 0, "last_tick": None}
+        on = {**off, "on": True, "days": 2, "handoffs_with_activity": 1, "rated_ok": 1, "browser": "denied"}
+        with mock.patch.object(activity, "report", side_effect=[off, on]), \
+                mock.patch.object(activity, "turn_on") as turn_on:
+            p.fill("#askInput", "/활동기록")
+            p.keyboard.press("Enter")
+            p.wait_for_function("document.querySelector('#toast').innerText.includes('활동 기록 · 꺼짐')")
+            self.assertIn("키 입력·화면·메신저·비밀번호 앱은 남기지 않아요", p.inner_text("#toast"))
+            turn_on.assert_not_called()                     # 보기만으로는 켜지 않는다
+            p.click("#toast >> text=켜기")
+            p.wait_for_function("document.querySelector('#toast').innerText.includes('활동 기록 · 켜짐')")
+            text = p.inner_text("#toast")
+            self.assertIn("시험 2일째 / 14일", text)
+            self.assertIn("자동화에서 허용", text)          # 브라우저 권한이 없으면 알린다
+            turn_on.assert_called_once()
+
+
+if __name__ == "__main__":
+    unittest.main()
