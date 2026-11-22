@@ -75,7 +75,7 @@ class PaymentScreenMarkupAndWiringTest(unittest.TestCase):
             self.assertTrue(rt.restart_requested)
 
     def test_license_api_check_over_http_in_mini_edition(self):
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(licensenet, "ISSUER", ""):
             rt = pet.PetRuntime(home=d, log_dir=d, map_path=str(Path(d) / "map.json"), edition="mini")
             srv = pet.start_server(rt, "127.0.0.1", 0)
             try:

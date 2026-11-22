@@ -19,8 +19,8 @@ from pathlib import Path
 from . import config, license
 from .fsutil import atomic_write
 
-# 발급기(issuer/worker.js) 주소. 비어 있으면 자동 받기는 꺼진 것과 같다(도메인을 정하면 넣는다).
-ISSUER = ""
+# 발급기(issuer/worker.js) 주소. 비어 있으면 자동 받기는 꺼진 것과 같다.
+ISSUER = "https://license.getropet.com"
 PLANS = ("yearly", "monthly")
 PENDING_SECONDS = 2 * 3600     # 결제를 시작하고 이만큼은 짧게 확인한다
 PENDING_EVERY = 15             # 구매 대기 중 확인 간격(초)

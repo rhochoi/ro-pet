@@ -86,9 +86,9 @@ class SiteStaticTest(unittest.TestCase):
         self.assertEqual(pro.count('aria-disabled="true">Coming soon'), 2)
         self.assertNotIn('data-checkout="yearly" href', pro)   # 링크는 설정을 채웠을 때만 스크립트가 붙인다
 
-    def test_legal_drafts_are_marked(self):
+    def test_legal_pages_are_finalized(self):
         for page in ("privacy/index.html", "terms/index.html", "refund/index.html"):
-            self.assertIn('class="draft"', (SITE / page).read_text(encoding="utf-8"), page)
+            self.assertNotIn("Nothing is for sale yet", (SITE / page).read_text(encoding="utf-8"), page)
 
 
 def _lum(hexcolor):

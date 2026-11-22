@@ -2,11 +2,11 @@
 // Empty value = the page shows a "coming soon" state instead of a broken link.
 window.RO_SITE = {
   checkout: {
-    yearly: "",   // Polar checkout link for the yearly price (sandbox first). Its success URL: <site>/thanks/
-    monthly: "",  // Polar checkout link for the monthly price
+    yearly: "https://buy.polar.sh/polar_cl_wAHSgJJpSs01cUeVPL8Wnw4QbIvw1GByW2fne2L7r38",
+    monthly: "https://buy.polar.sh/polar_cl_Gr2zKkigE4Yq9qOaYuNCWqIBKvcBOKIDtghji2oWmfn",
   },
-  portal: "",     // Polar customer portal (manage subscription, invoices, refunds)
-  support: "",    // support email address
+  portal: "https://polar.sh/robot/portal",
+  support: "support@getropet.com",
 };
 
 (function () {

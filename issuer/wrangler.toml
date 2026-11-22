@@ -2,20 +2,19 @@
 name = "ro-license-issuer"
 main = "worker.js"
 compatibility_date = "2026-11-01"
+workers_dev = false
+routes = [{ pattern = "license.getropet.com", custom_domain = true }]
 
 [vars]
 LICENSE_KID = "ro1"       # ro/license.py PUBLIC_KEYS에 넣은 kid와 같게
 MAIL_FROM = "ro <license@getropet.com>"   # Resend에서 getropet.com 도메인 인증 필요
-POLAR_PRODUCT_IDS = ""    # pro 상품 id들(쉼표). 비우면 모든 상품 결제에 발급
-POLAR_API = "https://sandbox-api.polar.sh"   # 운영: https://api.polar.sh (토큰도 따로)
-POLAR_PRODUCT_YEARLY = ""   # pro 연간 상품 id
-POLAR_PRODUCT_MONTHLY = ""  # pro 월간 상품 id
+POLAR_PRODUCT_IDS = "019cffa6-e87d-4dbb-a4d0-afca11e7f351,b6bdc9b1-6a76-4198-a084-8c8ee10915ad"
+POLAR_API = "https://api.polar.sh"        # 운영 API (테스트는 https://sandbox-api.polar.sh)
+POLAR_PRODUCT_YEARLY = "019cffa6-e87d-4dbb-a4d0-afca11e7f351"
+POLAR_PRODUCT_MONTHLY = "b6bdc9b1-6a76-4198-a084-8c8ee10915ad"
 SUCCESS_URL = "https://getropet.com/thanks/?checkout_id={CHECKOUT_ID}"
 
-# 배포 시 커스텀 도메인 연결 (Cloudflare 대시보드 또는 아래 routes 활성화):
-# routes = [{ pattern = "license.getropet.com", custom_domain = true }]
-
-# 앱이 스스로 키를 받아 가게 하는 저장소. `npx wrangler kv namespace create LICENSES`가 준 id를 넣고 주석을 푼다
-# [[kv_namespaces]]
-# binding = "LICENSES"
-# id = ""
+# 앱이 스스로 키를 받아 가게 하는 저장소
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "e0ab94b2198f4fba8c63505ba3c97032"
