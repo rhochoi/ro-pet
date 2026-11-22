@@ -562,6 +562,7 @@
       0 3px 7px rgba(15, 14, 13, 0.32);
   }
   body.glass-dark.material-clay .pill {
+    background: var(--bot-fill);
     border: none;
     box-shadow:
       inset 0 2.5px 4px rgba(255, 255, 255, 0.22),
@@ -1332,6 +1333,7 @@
   /* design은 설정 한 장뿐이다: 내용만큼만 열고, 창보다 길면 스크롤하며 아래가 흐려진다. 아래 여백은 탭 12 + 패널 4 = 16 */
   body.edition-mini .bubble { height: auto; min-height: 0; max-height: calc(100vh - 57px - 102px * var(--pet-scale, 1)); padding-bottom: 4px; }
   body.edition-mini .mini-only { display: flex; }
+  body.edition-mini details.mini-only { display: block; }
   body.edition-mini .pro-only,
   body.edition-mini .nav-tabs,
   body.edition-mini #paneHome,
@@ -1339,6 +1341,33 @@
   body.edition-mini #paneOrganize { display: none !important; }
   .preview-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
   .preview-chips .opt-btn { height: var(--control-sm); padding: 0 8px; min-width: 0; font-weight: 400; }
+  .setting-details {
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    background: var(--panel-bg);
+    padding: 0 12px;
+  }
+  .details-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--control);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--panel-fg);
+    list-style: none;
+    cursor: pointer;
+  }
+  .details-summary::-webkit-details-marker { display: none; }
+  .details-summary::after { content: "›"; color: var(--muted); transition: transform 0.04s ease; }
+  .setting-details[open] > .details-summary::after { transform: rotate(90deg); }
+  .details-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0 12px;
+    border-top: 1px solid var(--divider);
+  }
 
   /* ro pro 확인 카드: 항목 줄과 체크박스(시스템 파랑 대신 잉크/분필) */
   .stage-row { display: flex; gap: 6px; align-items: flex-start; cursor: pointer; }

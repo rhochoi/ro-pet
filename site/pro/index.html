@@ -11,10 +11,11 @@
 <script src="../site-config.js" defer></script>
 <link rel="stylesheet" href="../assets/ro-hero/ro-hero.css">
 <script src="../assets/ro-hero/ro-hero.js" defer></script>
+<script src="../assets/ro-sandbox.js" defer></script>
 </head>
 <body>
 <header class="wrap top">
-  <a class="brand" href="../"><svg class="ro-mark ro-mark--brand" viewBox="0 0 145.67 139.33" aria-hidden="true"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="57" y="11.08" width="12.67" height="25.33" rx="6.33"/><rect class="ro-e" x="82.33" y="14.25" width="11.08" height="20.58" rx="5.54"/></svg>ro</a>
+  <a class="brand" href="../"><svg class="ro-mark ro-mark--brand" viewBox="0 0 145.67 139.33" aria-hidden="true"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="56" y="14.2" width="16" height="22.2" rx="8"/><rect class="ro-e" x="83.5" y="15.7" width="14.2" height="19.3" rx="7.1"/></svg>ro</a>
   <nav class="nav" aria-label="Main"><a href="../pro/" aria-current="page">Pro</a><a href="../license/">License</a><a href="../privacy/">Privacy</a></nav>
 </header>
 <main>
@@ -24,9 +25,10 @@
     <div>
       <p class="kicker">ro pro</p>
       <h1>Ask your Mac for the file. ro finds it.</h1>
-      <p class="lede">You don't have to keep folders tidy or remember file names. Press ⌥R, type what you remember, and ro looks on this Mac only.</p>
+      <p class="lede">Press ⌥R, type what you remember, and ro looks on this Mac only. Try it right below.</p>
       <div class="hero-actions">
-        <a class="btn" href="#pricing">See pricing</a>
+        <a class="btn" href="#pro-sandbox">Try live sandbox</a>
+        <a class="btn ghost" href="#pricing">See pricing</a>
         <span class="muted small">Same app as the free ro. A license key turns pro on.</span>
       </div>
     </div>
@@ -34,27 +36,73 @@
 
   <figure class="demo">
     <div id="ro-hero" class="demo-stage">
-      <svg class="ro-mark hero-art" viewBox="0 0 145.67 139.33" role="img" aria-label="ro"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="57" y="11.08" width="12.67" height="25.33" rx="6.33"/><rect class="ro-e" x="82.33" y="14.25" width="11.08" height="20.58" rx="5.54"/></svg>
+      <svg class="ro-mark hero-art" viewBox="0 0 145.67 139.33" role="img" aria-label="ro"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="56" y="14.2" width="16" height="22.2" rx="8"/><rect class="ro-e" x="83.5" y="15.7" width="14.2" height="19.3" rx="7.1"/></svg>
     </div>
     <figcaption class="small muted">An illustration of ro's ⌥R search. Real results come from the files on your Mac.</figcaption>
   </figure>
 
+  <section id="pro-sandbox" aria-labelledby="sandbox-h">
+    <h2 id="sandbox-h">Try it in your browser</h2>
+    <div class="sandbox-box" data-mood="rest" id="sandboxPet">
+      <div class="sb-top">
+        <div class="sb-tabs" role="tablist" aria-label="Sandbox mode">
+          <button type="button" id="sandboxTabSearch" class="sb-tab active" role="tab" aria-selected="true" aria-controls="sandboxSearchView">1. Find files (⌥R)</button>
+          <button type="button" id="sandboxTabTidy" class="sb-tab" role="tab" aria-selected="false" aria-controls="sandboxTidyView">2. Tidy Downloads + Undo</button>
+        </div>
+        <span id="sandboxSearchMeta" class="sb-meta" role="status" aria-live="polite">20 virtual files on this Mac · 0 network requests</span>
+      </div>
+
+      <div id="sandboxSearchView" role="tabpanel" aria-labelledby="sandboxTabSearch">
+        <div class="sb-search-bar">
+          <div class="sb-input-wrap">
+            <kbd>⌥R</kbd>
+            <input id="sandboxSearchInput" class="sb-input" type="search" value="contract pdf last month" placeholder="Log or find a file · / for commands" aria-label="Search virtual Mac files" autocomplete="off">
+          </div>
+          <div class="sb-presets" aria-label="Sample queries">
+            <span class="small muted">Try:</span>
+            <button type="button" class="wp-chip" data-sandbox-query="contract pdf last month">contract pdf last month</button>
+            <button type="button" class="wp-chip" data-sandbox-query="october invoice">october invoice</button>
+            <button type="button" class="wp-chip" data-sandbox-query="whiteboard OCR">whiteboard OCR</button>
+            <button type="button" class="wp-chip" data-sandbox-query="handoff note">handoff note</button>
+            <button type="button" class="wp-chip" data-sandbox-query="tax 2026">tax 2026</button>
+          </div>
+        </div>
+        <div class="sb-grid" style="margin-top:14px">
+          <div id="sandboxResults" class="sb-results" role="listbox" aria-label="Matching virtual files"></div>
+          <div id="sandboxPreview" class="sb-preview" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div id="sandboxTidyView" role="tabpanel" aria-labelledby="sandboxTabTidy" hidden>
+        <div class="sb-tidy-head">
+          <div id="sandboxTidyStatus" class="sb-status-banner" role="status" aria-live="polite">Nothing moves until you approve.</div>
+          <div class="sb-tidy-actions">
+            <button type="button" id="sandboxApproveBtn" class="sb-btn">Approve and run</button>
+            <button type="button" id="sandboxUndoBtn" class="sb-btn ghost" disabled>Undo (1-click)</button>
+            <button type="button" id="sandboxResetBtn" class="wp-chip">Reset</button>
+          </div>
+        </div>
+        <div id="sandboxTidyList" class="sb-tidy-list" role="group" aria-label="Downloads tidy candidates" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </section>
+
   <section aria-labelledby="does">
     <h2 id="does">What pro does</h2>
     <div class="grid">
-      <div class="card"><h3>Find files by asking</h3><p>By kind and time ("the contract PDF I got last month"), by a half-remembered name or a typo, and by the words inside documents and scanned images.</p><p class="how">⌥R → <code>/file</code></p></div>
-      <div class="card"><h3>Tidy your Downloads</h3><p>ro suggests where each file goes. It moves only what you approve, puts unneeded files in a holding folder instead of deleting them, and undoes everything in one step.</p><p class="how">Organize tab</p></div>
-      <div class="card"><h3>Switch AI tools without re-explaining</h3><p>Out of tokens in one AI tool? ro writes a handoff note from the history that tool left on this Mac, hides secrets, and opens the next tool. You paste it. ro never sends it anywhere.</p><p class="how"><code>/handoff</code></p></div>
-      <div class="card"><h3>Connect your AI tools safely</h3><p>See which AI tools share your rules and safety hook. ro shows the exact changes first and writes only the ones you approve.</p><p class="how"><code>/connect</code></p></div>
+      <div class="card"><h3>Find files by asking</h3><p>By kind, date, typo, and OCR text inside documents and images.</p><p class="how">⌥R → <code>/file</code></p></div>
+      <div class="card"><h3>Tidy your Downloads</h3><p>Preview first, move only what you approve, hold installers and duplicates without deleting, and undo in one click.</p><p class="how">Organize tab</p></div>
+      <div class="card"><h3>Switch AI tools cleanly</h3><p>Writes a local handoff note with secrets masked and opens the next tool.</p><p class="how"><code>/handoff</code></p></div>
+      <div class="card"><h3>Connect AI tools safely</h3><p>Previews shared rules and safety hooks before writing only what you approve.</p><p class="how"><code>/connect</code></p></div>
     </div>
   </section>
 
   <section aria-labelledby="trust">
     <h2 id="trust">Why you can trust it</h2>
     <ul class="list">
-      <li><strong>It doesn't touch your files.</strong> Search only reads. Tidying is optional and moves only what you approve. Nothing is deleted for good unless you confirm it yourself in Terminal.</li>
-      <li><strong>Your files never leave your Mac.</strong> Search doesn't use an AI service and doesn't send file contents or lists of paths. The only other thing ro does online is pick up your pro key, sending a random install ID and nothing else. You can turn that off.</li>
-      <li><strong>Secret files stay out of results.</strong> Password and key files are excluded from search.</li>
+      <li><strong>No unapproved writes.</strong> Search only reads. Tidying moves only what you approve and never deletes files without your Terminal confirmation.</li>
+      <li><strong>Local-first.</strong> Search never sends file contents or paths anywhere. Online requests are limited to app updates and picking up your pro key via a random install ID (which you can turn off).</li>
+      <li><strong>Secrets excluded.</strong> Password and key files stay out of search results.</li>
     </ul>
   </section>
 
@@ -98,9 +146,9 @@
   <section aria-labelledby="get">
     <h2 id="get">How you get it</h2>
     <ol class="steps">
-      <li><div><strong>Buy pro</strong>In ro: menu bar icon → <strong style="display:inline">Get pro…</strong>. Or use the buttons above. Checkout opens on Polar, our merchant of record. Your card details never reach us.</div></li>
-      <li><div><strong>pro turns on by itself</strong>Bought from ro? ro picks up your key and restarts with pro on. Nothing to paste. Bought here? A key starting with <code>RO1.</code> arrives by email.</div></li>
-      <li><div><strong>Got a key by email? Paste it</strong>ro menu bar icon → <strong style="display:inline">License…</strong> → paste → Save key → Restart ro now. Already have ro? No new download.</div></li>
+      <li><div><strong>Buy pro</strong>In ro: menu bar icon → <strong style="display:inline">Get pro…</strong>, or use the buttons above (via Polar).</div></li>
+      <li><div><strong>Automatic or email key</strong>Bought in ro? Pro activates automatically. Bought here? A key starting with <code>RO1.</code> arrives by email.</div></li>
+      <li><div><strong>Paste key offline</strong>Menu bar icon → <strong style="display:inline">License…</strong> → paste → Save key → Restart ro now.</div></li>
     </ol>
   </section>
 

@@ -115,10 +115,17 @@ __RO_CSS__</style>
         <div id="orgQuar" class="org-cats"></div>
         <div class="options-row">
           <button id="orgScanBtn" class="opt-btn">정리안 만들기</button>
-          <button id="orgStageBtn" class="opt-btn pro-only" type="button">확인 카드로 정리</button>
-          <button id="orgDiskBtn" class="opt-btn pro-only" type="button">용량 정리 후보</button>
           <button id="orgUndoBtn" class="opt-btn" style="display:none;">되돌리기</button>
         </div>
+        <details id="orgAdvancedDetails" class="setting-details pro-only">
+          <summary class="details-summary">확인 카드 · 용량 정리 후보</summary>
+          <div class="details-body">
+            <div class="options-row">
+              <button id="orgStageBtn" class="opt-btn pro-only" type="button">확인 카드로 정리</button>
+              <button id="orgDiskBtn" class="opt-btn pro-only" type="button">용량 정리 후보</button>
+            </div>
+          </div>
+        </details>
         <div id="orgMsg" class="org-msg" aria-live="polite"></div>
       </div>
     </div>
@@ -133,26 +140,6 @@ __RO_CSS__</style>
             <button id="focusBtn" class="opt-btn" aria-pressed="false">Turn on focus mode</button>
           </div>
           <div class="block-sub">Closes its eyes and holds notifications</div>
-        </div>
-
-        <!-- AI 도구 연결 -->
-        <div class="setting-block pro-only">
-          <div class="block-title">Connect AI tools</div>
-          <div class="options-row">
-            <button id="connOpenBtn" class="opt-btn">Claude · Codex · Antigravity</button>
-          </div>
-          <div class="block-sub">Connect shared rules and safety hooks to installed tools (preview, then approve) and hand off input</div>
-        </div>
-
-        <!-- ro pro 학습·먼저 알림 동의 -->
-        <div id="proConsentBlock" class="setting-block pro-only">
-          <div class="block-title">What ro learned · Heads-ups</div>
-          <div id="proConsentStatus" class="block-sub">ro won't learn or nudge until you turn it on.</div>
-          <div class="options-row">
-            <button id="proLearnToggleBtn" class="opt-btn" type="button">Turn on learning</button>
-            <button id="proNudgeToggleBtn" class="opt-btn" type="button">Turn on heads-ups</button>
-            <button id="proLearnedOpenBtn" class="opt-btn" type="button">View learned</button>
-          </div>
         </div>
 
         <!-- ro pro plan & license card -->
@@ -176,25 +163,6 @@ __RO_CSS__</style>
           </div>
         </div>
 
-        <div class="setting-block">
-          <div id="colorTitle" class="block-title">ro color</div>
-          <div class="segmented" role="group" aria-labelledby="colorTitle">
-            <button class="opt-btn look-opt" data-key="color" data-value="auto">System</button>
-            <button class="opt-btn look-opt" data-key="color" data-value="light">Light</button>
-            <button class="opt-btn look-opt" data-key="color" data-value="dark">Dark</button>
-            <button class="opt-btn look-opt" data-key="color" data-value="orange">Orange</button>
-          </div>
-        </div>
-
-        <div class="setting-block">
-          <div id="sizeTitle" class="block-title">Size</div>
-          <div class="segmented" role="group" aria-labelledby="sizeTitle">
-            <button class="opt-btn size-opt" data-size="small" aria-pressed="false">Small</button>
-            <button class="opt-btn size-opt active" data-size="medium" aria-pressed="true">Medium</button>
-            <button class="opt-btn size-opt" data-size="big" aria-pressed="false">Big</button>
-          </div>
-        </div>
-
         <!-- 돌아다니기 스위치 -->
         <div class="setting-block">
           <div class="toggle-row">
@@ -209,29 +177,85 @@ __RO_CSS__</style>
           </div>
         </div>
 
-        <!-- 앱 반응: 앞에 온 앱이 메일·메시지 앱인지, 새 앱이 열렸는지만 본다 -->
-        <div class="setting-block react-setting">
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span class="toggle-name">Reactions</span>
-              <span class="toggle-sub">Notices when you open an app or switch to mail or messages. Only the app in front is checked, nothing is read or saved</span>
+        <!-- 접이식 꾸미기 옵션: 색상 · 크기 · 앱 반응 -->
+        <details id="moreStyleDetails" class="setting-details">
+          <summary class="details-summary">Color, size &amp; app reactions</summary>
+          <div class="details-body">
+            <div class="setting-block">
+              <div id="colorTitle" class="block-title">ro color</div>
+              <div class="segmented" role="group" aria-labelledby="colorTitle">
+                <button class="opt-btn look-opt" data-key="color" data-value="auto">System</button>
+                <button class="opt-btn look-opt" data-key="color" data-value="light">Light</button>
+                <button class="opt-btn look-opt" data-key="color" data-value="dark">Dark</button>
+                <button class="opt-btn look-opt" data-key="color" data-value="orange">Orange</button>
+              </div>
             </div>
-            <label class="switch">
-              <input id="reactToggle" type="checkbox" aria-label="Reactions" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
 
-        <!-- 표정·모션 미리보기 (mini 에디션에서만 보인다) -->
-        <div class="setting-block mini-only">
-          <div class="block-title">Expression</div>
-          <div id="moodChips" class="preview-chips"></div>
-        </div>
-        <div class="setting-block mini-only">
-          <div class="block-title">Motion</div>
-          <div id="actionChips" class="preview-chips"></div>
-        </div>
+            <div class="setting-block">
+              <div id="sizeTitle" class="block-title">Size</div>
+              <div class="segmented" role="group" aria-labelledby="sizeTitle">
+                <button class="opt-btn size-opt" data-size="small" aria-pressed="false">Small</button>
+                <button class="opt-btn size-opt active" data-size="medium" aria-pressed="true">Medium</button>
+                <button class="opt-btn size-opt" data-size="big" aria-pressed="false">Big</button>
+              </div>
+            </div>
+
+            <!-- 앱 반응: 앞에 온 앱이 메일·메시지 앱인지, 새 앱이 열렸는지만 본다 -->
+            <div class="setting-block react-setting">
+              <div class="toggle-row">
+                <div class="toggle-text">
+                  <span class="toggle-name">Reactions</span>
+                  <span class="toggle-sub">Notices when you open an app or switch to mail or messages. Only the app in front is checked, nothing is read or saved</span>
+                </div>
+                <label class="switch">
+                  <input id="reactToggle" type="checkbox" aria-label="Reactions" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 접이식 pro 도구·학습 설정 -->
+        <details id="proToolsDetails" class="setting-details pro-only">
+          <summary class="details-summary">AI tools &amp; learning</summary>
+          <div class="details-body">
+            <!-- AI 도구 연결 -->
+            <div class="setting-block pro-only">
+              <div class="block-title">Connect AI tools</div>
+              <div class="options-row">
+                <button id="connOpenBtn" class="opt-btn">Claude · Codex · Antigravity</button>
+              </div>
+              <div class="block-sub">Connect shared rules and safety hooks to installed tools (preview, then approve) and hand off input</div>
+            </div>
+
+            <!-- ro pro 학습·먼저 알림 동의 -->
+            <div id="proConsentBlock" class="setting-block pro-only">
+              <div class="block-title">What ro learned · Heads-ups</div>
+              <div id="proConsentStatus" class="block-sub">ro won't learn or nudge until you turn it on.</div>
+              <div class="options-row">
+                <button id="proLearnToggleBtn" class="opt-btn" type="button">Turn on learning</button>
+                <button id="proNudgeToggleBtn" class="opt-btn" type="button">Turn on heads-ups</button>
+                <button id="proLearnedOpenBtn" class="opt-btn" type="button">View learned</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 표정·모션 미리보기 (mini 에디션 접이식 섹션) -->
+        <details id="previewDetails" class="setting-details mini-only">
+          <summary class="details-summary">Preview expressions &amp; motion</summary>
+          <div class="details-body">
+            <div class="setting-block">
+              <div class="block-title">Expression</div>
+              <div id="moodChips" class="preview-chips"></div>
+            </div>
+            <div class="setting-block">
+              <div class="block-title">Motion</div>
+              <div id="actionChips" class="preview-chips"></div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 

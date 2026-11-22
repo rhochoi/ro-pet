@@ -155,3 +155,102 @@ class SeekWatch:
             self.moves.clear()
             return {"switches": len(recent) - 1, "folders": len({f for f, _ in recent}), "last": folder}
         return None
+
+
+# ---- 풀린 압축 원본 & 중복 다운로드 (읽기 전용) ----
+ARCHIVE_EXTS = (".zip",)
+REVIEW_KEYWORDS = ("계약", "영수증", "세금", "급여", "연봉", "invoice", "contract", "receipt", "tax", "payroll")
+
+
+def unpacked_archives(downloads="~/Downloads", now=None):
+    """[{path, extracted, bytes}] 같은 폴더 안에 이미 같은 이름의 폴더로 압축이 풀려 있는 .zip 원본(읽기 전용)."""
+    now = time.time() if now is None else now
+    base = Path(downloads).expanduser()
+    try:
+        entries = list(os.scandir(base))
+    except OSError:
+        return []
+    dirs = { _norm(e.name): e.name for e in entries if e.is_dir(follow_symlinks=False) and not e.name.startswith(".") }
+    out = []
+    for e in entries:
+        if not e.name.lower().endswith(ARCHIVE_EXTS) or e.name.startswith("."):
+            continue
+        p = Path(e.path)
+        try:
+            st = e.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if fsguard.is_dataless(p, st) or fsguard.is_lock_file(p.name) or now - st.st_mtime < INSTALL_SETTLE:
+            continue
+        key = _norm(p.stem)
+        if len(key) >= 3 and key in dirs:
+            out.append({"path": str(p), "extracted": dirs[key], "bytes": st.st_size})
+    return out
+
+
+def duplicate_downloads(downloads="~/Downloads", now=None):
+    """[{path, original, bytes}] 다운로드 폴더 안의 바이트 동일 중복 사본(재무·계약 민감 파일 제외, 읽기 전용)."""
+    now = time.time() if now is None else now
+    base = Path(downloads).expanduser()
+    try:
+        entries = list(os.scandir(base))
+    except OSError:
+        return []
+    files = []
+    for e in entries:
+        if e.name.startswith(".") or not e.is_file(follow_symlinks=False):
+            continue
+        p = Path(e.path)
+        try:
+            st = e.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if st.st_size <= 0 or fsguard.is_dataless(p, st) or fsguard.is_lock_file(p.name) or now - st.st_mtime < INSTALL_SETTLE:
+            continue
+        lower = p.name.casefold()
+        if any(k in lower for k in REVIEW_KEYWORDS):
+            continue
+        files.append((p, st))
+    out = []
+    for keeper, dups, _sha in detect.duplicate_groups(files):
+        for dup, dst in dups:
+            out.append({"path": str(dup), "original": keeper.name, "bytes": dst.st_size})
+    return out
+
+
+# ---- AI 도구 작업 전환 감지 ----
+AI_TOOL_ALIASES = {
+    "claude": "Claude",
+    "claude code": "Claude",
+    "codex": "Codex",
+    "antigravity": "Antigravity",
+    "cursor": "Cursor",
+}
+SWITCH_WINDOW = 300.0
+
+
+def _ai_tool_name(app_name):
+    s = (app_name or "").strip().casefold()
+    for k, label in AI_TOOL_ALIASES.items():
+        if s == k or s.startswith(k + " "):
+            return label
+    return None
+
+
+class ContextSwitchWatch:
+    """서로 다른 AI 도구로 전환할 때만 감지한다(일반 앱 전환은 무시)."""
+
+    def __init__(self):
+        self.last_tool = None
+        self.last_at = 0.0
+
+    def on_app(self, app_name, now=None):
+        now = time.time() if now is None else now
+        tool = _ai_tool_name(app_name)
+        if not tool:
+            return None
+        prev, prev_at = self.last_tool, self.last_at
+        self.last_tool, self.last_at = tool, now
+        if prev and prev != tool and (now - prev_at) <= SWITCH_WINDOW:
+            return {"from": prev, "to": tool}
+        return None

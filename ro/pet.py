@@ -290,12 +290,19 @@ class PetRuntime:
             if isinstance(ev.get("ax"), bool):
                 self.ax_trusted = ev["ax"]
             return True
+        if kind == "arrival" and isinstance(ev.get("path"), str):
+            if not (self.tact.front and self.tact.front.get("private")):
+                self.tact.on_arrival(ev["path"], now=ev.get("t"))
+                return True
+            return False
         if kind in self.SENSOR_TYPES:
             activity.push(ev)
             if self.tact.on_sensor(ev) and kind == "front" and ev.get("app"):   # 비밀 앱은 위에서 이미 버렸다
                 from . import profile
                 at = ev.get("t") or time.time()
                 profile.observe_quiet("app_band", profile.band(at), str(ev["app"]), home=self.home, now=at)
+                if self.pro:
+                    self.pro.on_front(str(ev["app"]), now=at)
             elif kind == "ax" and self.tact.front and not self.tact.front.get("private"):
                 self.pro.on_ax(ev, self.tact.front.get("app"), now=ev.get("t"))
             return True

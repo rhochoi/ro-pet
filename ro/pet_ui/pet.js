@@ -613,6 +613,7 @@ window.addEventListener("mousemove", (e) => followPointer(e.clientX, e.clientY))
 function clearHeadGaze() {
   layerHead.style.removeProperty("--look-x");
   layerHead.style.removeProperty("--look-y");
+  delete petWrap.dataset.gaze;
 }
 function followPointer(x, y) {
   recordActivity();
@@ -628,6 +629,7 @@ function followPointer(x, y) {
   const cy = rect.top + rect.height * 0.5;
   const dx = Math.max(-3.0, Math.min(3.0, (x - cx) / 32));
   const dy = Math.max(-1.8, Math.min(2.0, (y - cy) / 32));
+  petWrap.dataset.gaze = "active";
   eyesWrap.style.transform = `translate(${dx}px, calc(-50% + ${dy}px))`;
   layerHead.style.setProperty("--look-x", `${dx * 0.28}px`);
   layerHead.style.setProperty("--look-y", `${dy * 0.28}px`);
@@ -1393,6 +1395,10 @@ const RoMotion = (() => {
     S.phase = "press";
     S.downAt = t;
     S.simT = t;
+    if (!manual) {
+      petWrap.dataset.motion = "press";
+      petWrap.dataset.eyes = "squint";
+    }
     ensureLoop();
   }
 
@@ -2662,28 +2668,10 @@ function renderProConsent(pro) {
   }
   if (proLearnToggleBtn) proLearnToggleBtn.textContent = pro.learning ? "학습 끄기" : "학습 켜기";
   if (proNudgeToggleBtn) proNudgeToggleBtn.textContent = pro.nudges ? "먼저 알림 끄기" : "먼저 알림 켜기";
-  if (!proOnboardCard) return;
-  if (pro.learning && pro.nudges && pro.ax !== false) {
+  if (proOnboardCard) {
     proOnboardCard.style.display = "none";
     proOnboardCard.replaceChildren();
-    return;
   }
-  proOnboardCard.style.display = "block";
-  const actions = [];
-  if (!pro.learning) actions.push(h("button", { class: "mini-btn primary", type: "button", text: "학습 켜기", onclick: async () => {
-    await apiPost("/api/memory", { op: "consent", on: true }); await refreshState();
-  } }));
-  if (!pro.nudges) actions.push(h("button", { class: "mini-btn primary", type: "button", text: "먼저 알림 켜기", onclick: async () => {
-    await apiPost("/api/memory", { op: "nudges", on: true }); await refreshState();
-  } }));
-  const msg = pro.ax === false
-    ? "Finder 이동·열린 문서 감지를 쓰려면 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 ro를 허용해 주세요."
-    : "동의를 켜기 전에는 배우거나 먼저 알리지 않아요. 파일 이름·본문은 남기지 않아요.";
-  proOnboardCard.replaceChildren(
-    h("div", { class: "gate-head", text: "ro pro 시작 설정" }),
-    h("div", { class: "gate-body", text: msg }),
-    actions.length ? h("div", { class: "gate-actions" }, ...actions) : null,
-  );
 }
 
 function applyPro(pro, hint) {
@@ -2730,19 +2718,23 @@ async function stageCard(id, done) {
     try { u = await apiPost("/api/stage", { op: "undo", id }); } catch (err) { u = null; }
     stageCard(id, u && u.ok ? `되돌렸어요 · 파일 ${u.files}개 제자리로${u.skipped ? ` · 바뀐 것 ${u.skipped}개는 그대로` : ""}` : (u && u.error) || "되돌리지 못했어요.");
   } });
+  const dismiss = h("button", { class: "mini-btn", type: "button", text: c.applied ? "닫기" : "취소", onclick: () => hideToast() });
   showToast([
     h("div", { class: "toast-head", text: `${c.title} · ${c.items.length}개 · ${fmtBytes(total)}` }),
     done ? h("div", { class: "block-sub", text: done }) : null,
     sure.length ? sureBox : null,
     ...(maybe.length ? [h("div", { class: "block-sub", text: `아마도요 ${maybe.length}개 — 직접 골라 주세요` }), ...maybe.map(row)] : []),
     h("div", { class: "block-sub", text: "격리한 것은 ~/.ro/cleanup/trash에 있고 되돌릴 수 있어요. 이 Mac 사본 내보내기는 iCloud에 남고 다시 내려받을 수 있어요." }),
-    h("div", { class: "toast-row" }, c.applied ? undo : apply),
+    h("div", { class: "toast-row" }, c.applied ? undo : apply, dismiss),
   ], 0);
 }
 /* ro가 배운 것(원칙 6): 무엇을 배웠는지 한 화면에서 보고 고정·끄기·지우기. 이름·경로·본문은 배우지 않는다 */
 const LEARNED_STATE = { learned: "배움", watching: "보는 중", pinned: "고정됨", off: "꺼 둠" };  // '고정'은 버튼 말이라 상태는 '고정됨'
 const LEARNED_KIND = { ext_home: ["확장자", "폴더"], pick_folder: ["찾는 종류", "폴더"], app_band: ["시간대", "앱"] };
-const NUDGE_NAMES = { find_lost: "찾기 헤맴", old_version: "옛 판본", disk_low: "용량 부족", dmg_installed: "설치 파일" };
+const NUDGE_NAMES = {
+  find_lost: "찾기 헤맴", old_version: "옛 판본", disk_low: "용량 부족", dmg_installed: "설치 파일",
+  archive_unpacked: "풀린 압축", duplicate_found: "중복 파일", download_burst: "다운로드 묶음", context_switch: "도구 전환",
+};
 async function learnedCard(req, confirmWipe) {
   let r = null;
   try { r = await apiPost("/api/memory", req); } catch (err) { r = null; }

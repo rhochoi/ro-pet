@@ -207,6 +207,211 @@ class SiteTruthTest(unittest.TestCase):
         self.assertNotIn("the pet's", self.read("site/pro/index.html"))
 
 
+class SiteInteractiveSandboxTest(unittest.TestCase):
+    """Track B: 살아 있는 인터랙티브 웹 펫(site/index.html)과 로컬 샌드박스 체험판(site/pro/index.html) 검증."""
+
+    def test_interactive_scripts_have_zero_network_calls(self):
+        for rel in ("assets/web-pet.js", "assets/ro-sandbox.js"):
+            js = (SITE / rel).read_text(encoding="utf-8")
+            for call in ("fetch(", "XMLHttpRequest", "WebSocket", "sendBeacon", "http://", "https://"):
+                self.assertNotIn(call, js, f"{rel} contains network primitive {call!r}")
+
+    def test_web_pet_and_pro_sandbox_markup_present(self):
+        idx = (SITE / "index.html").read_text(encoding="utf-8")
+        for marker in ('id="web-pet-playground"', 'id="webPetStage"', 'id="webPetWrap"', 'data-wp-mat="clay"',
+                       'data-wp-mat="glass"', 'data-wp-color="orange"', 'data-wp-size="big"', 'data-wp-mood="discovery"',
+                       'id="webPetPauseBtn"'):
+            self.assertIn(marker, idx)
+        pro = (SITE / "pro/index.html").read_text(encoding="utf-8")
+        for marker in ('id="pro-sandbox"', 'id="sandboxTabSearch"', 'id="sandboxTabTidy"', 'id="sandboxSearchInput"',
+                       'id="sandboxResults"', 'id="sandboxPreview"', 'id="sandboxApproveBtn"', 'id="sandboxUndoBtn"',
+                       'id="sandboxTidyList"'):
+            self.assertIn(marker, pro)
+
+    def test_web_pet_interactions_and_latency_under_100ms(self):
+        import json
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node 필요")
+        web_pet_js = (SITE / "assets/web-pet.js").read_text(encoding="utf-8")
+        script = r"""
+const assert = require('node:assert/strict');
+function makeEl(id = '') {
+  const attrs = new Map();
+  const classes = new Set();
+  const styles = new Map();
+  const listeners = {};
+  return {
+    id,
+    textContent: '',
+    innerHTML: '',
+    hidden: false,
+    disabled: false,
+    classList: {
+      toggle(c, on) { if (on === undefined) on = !classes.has(c); if (on) classes.add(c); else classes.delete(c); },
+      add(c) { classes.add(c); },
+      remove(c) { classes.delete(c); },
+      contains(c) { return classes.has(c); }
+    },
+    style: {
+      transform: '',
+      setProperty(k, v) { styles.set(k, String(v)); },
+      getPropertyValue(k) { return styles.get(k) || ''; },
+      removeProperty(k) { styles.delete(k); }
+    },
+    setAttribute(k, v) { attrs.set(k, String(v)); },
+    getAttribute(k) { return attrs.has(k) ? attrs.get(k) : null; },
+    removeAttribute(k) { attrs.delete(k); },
+    addEventListener(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); },
+    getBoundingClientRect() { return { left: 100, top: 100, width: 80, height: 32 }; }
+  };
+}
+const nodes = {
+  '#webPetStage': makeEl('webPetStage'),
+  '#webPetWrap': makeEl('webPetWrap'),
+  '#webPetHead': makeEl('webPetHead'),
+  '#webPetBody': makeEl('webPetBody'),
+  '#webPetBase': makeEl('webPetBase'),
+  '#webPetEyes': makeEl('webPetEyes'),
+  '#webPetEyeL': makeEl('webPetEyeL'),
+  '#webPetEyeR': makeEl('webPetEyeR'),
+  '#webPetStatus': makeEl('webPetStatus'),
+  '#webPetPauseBtn': makeEl('webPetPauseBtn'),
+};
+const root = {
+  querySelector(sel) { return nodes[sel] || null; },
+  querySelectorAll() { return []; }
+};
+global.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
+global.document = { readyState: 'complete', getElementById: () => root };
+""" + web_pet_js + r"""
+const pet = window.RoWebPet;
+assert.ok(pet, 'RoWebPet initialized');
+const latencies = [];
+pet.setMaterial('glass'); latencies.push(pet.state.lastLatencyMs);
+assert.equal(nodes['#webPetWrap'].getAttribute('data-material'), 'glass');
+pet.setColor('orange'); latencies.push(pet.state.lastLatencyMs);
+assert.equal(nodes['#webPetWrap'].getAttribute('data-color'), 'orange');
+pet.setSize('big'); latencies.push(pet.state.lastLatencyMs);
+assert.equal(nodes['#webPetStage'].style.getPropertyValue('--wp-scale'), '1.24');
+pet.setMood('discovery'); latencies.push(pet.state.lastLatencyMs);
+assert.equal(nodes['#webPetWrap'].getAttribute('data-mood'), 'discovery');
+pet.setMood('idle');
+pet.gazeAt(220, 140); latencies.push(pet.state.lastLatencyMs);
+assert.notEqual(pet.state.gaze.dx, 0);
+pet.press(); latencies.push(pet.state.lastLatencyMs);
+assert.equal(nodes['#webPetWrap'].getAttribute('data-action'), 'press');
+// Rubbing head back and forth triggers pet
+[100, 120, 95, 125, 90].forEach((x, i) => pet.feedStroke(x, i * 80));
+latencies.push(pet.state.lastLatencyMs);
+assert.equal(nodes['#webPetWrap'].getAttribute('data-action'), 'pet');
+pet.togglePause(true);
+assert.equal(pet.state.paused, true);
+console.log(JSON.stringify({ ok: true, maxLatencyMs: Math.max(...latencies), interactions: pet.state.interactions }));
+"""
+        r = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = json.loads(r.stdout.strip())
+        self.assertTrue(out["ok"])
+        self.assertLessEqual(out["maxLatencyMs"], 100.0)
+        self.assertGreaterEqual(out["interactions"], 6)
+
+    def test_pro_sandbox_search_and_tidy_apply_undo_under_100ms(self):
+        import json
+        import shutil
+        import subprocess
+        if not shutil.which("node"):
+            self.skipTest("node 필요")
+        sandbox_js = (SITE / "assets/ro-sandbox.js").read_text(encoding="utf-8")
+        script = r"""
+const assert = require('node:assert/strict');
+function makeEl(id = '') {
+  return {
+    id, value: '', textContent: '', innerHTML: '', hidden: false, disabled: false,
+    classList: { toggle() {}, add() {}, remove() {} },
+    setAttribute() {}, getAttribute() { return null; }, addEventListener() {}, appendChild() {}, querySelector() { return null; }
+  };
+}
+const els = {
+  '#sandboxTabSearch': makeEl('sandboxTabSearch'),
+  '#sandboxTabTidy': makeEl('sandboxTabTidy'),
+  '#sandboxSearchView': makeEl('sandboxSearchView'),
+  '#sandboxTidyView': makeEl('sandboxTidyView'),
+  '#sandboxSearchInput': makeEl('sandboxSearchInput'),
+  '#sandboxResults': makeEl('sandboxResults'),
+  '#sandboxPreview': makeEl('sandboxPreview'),
+  '#sandboxSearchMeta': makeEl('sandboxSearchMeta'),
+  '#sandboxTidyList': makeEl('sandboxTidyList'),
+  '#sandboxTidyStatus': makeEl('sandboxTidyStatus'),
+  '#sandboxApproveBtn': makeEl('sandboxApproveBtn'),
+  '#sandboxUndoBtn': makeEl('sandboxUndoBtn'),
+  '#sandboxResetBtn': makeEl('sandboxResetBtn'),
+  '#sandboxPet': makeEl('sandboxPet'),
+};
+const root = {
+  querySelector(s) { return els[s] || null; },
+  querySelectorAll() { return []; }
+};
+global.window = { addEventListener() {} };
+global.document = {
+  readyState: 'complete',
+  getElementById: () => root,
+  createElement: () => makeEl()
+};
+""" + sandbox_js + r"""
+const sb = window.RoProSandbox;
+assert.ok(sb, 'RoProSandbox initialized');
+const allFiles = sb.getFiles();
+assert.ok(allFiles.length >= 15 && allFiles.length <= 25, '15~25 virtual files');
+const latencies = [];
+
+// 1. Search by kind & time
+const r1 = sb.search('contract pdf last month');
+latencies.push(sb.state.lastLatencyMs);
+assert.ok(r1.length >= 2);
+assert.equal(r1[0].name, 'contract_final_v2.pdf');
+
+// 2. Search by OCR / document content
+const r2 = sb.search('whiteboard OCR TactGate');
+latencies.push(sb.state.lastLatencyMs);
+assert.ok(r2.some(x => x.name === 'IMG_4092_whiteboard_scan.png'));
+
+// 3. Tidy preview -> approve apply -> 1-click undo -> 100% restored
+const before = JSON.stringify(sb.getFiles());
+sb.setMode('tidy');
+latencies.push(sb.state.lastLatencyMs);
+const batch = sb.applyTidy();
+latencies.push(sb.state.lastLatencyMs);
+assert.ok(batch && batch.movedCount >= 5 && batch.heldCount >= 4);
+const afterApply = JSON.stringify(sb.getFiles());
+assert.notEqual(afterApply, before, 'applyTidy moves approved files');
+
+const restoredCount = sb.undoTidy();
+latencies.push(sb.state.lastLatencyMs);
+assert.equal(restoredCount, batch.movedCount + batch.heldCount);
+const afterUndo = JSON.stringify(sb.getFiles());
+assert.equal(afterUndo, before, '1-click undo restores 100% of files to original folder and name');
+
+console.log(JSON.stringify({
+  ok: true,
+  fileCount: allFiles.length,
+  maxLatencyMs: Math.max(...latencies),
+  moved: batch.movedCount,
+  held: batch.heldCount,
+  restored: restoredCount
+}));
+"""
+        r = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = json.loads(r.stdout.strip())
+        self.assertTrue(out["ok"])
+        self.assertGreaterEqual(out["fileCount"], 15)
+        self.assertLessEqual(out["fileCount"], 25)
+        self.assertLessEqual(out["maxLatencyMs"], 100.0)
+        self.assertEqual(out["restored"], out["moved"] + out["held"])
+
+
 @unittest.skipUnless(sync_playwright, "playwright 필요")
 class SiteBrowserTest(unittest.TestCase):
     @classmethod
@@ -241,19 +446,41 @@ class SiteBrowserTest(unittest.TestCase):
 
     def test_filled_checkout_turns_buttons_on(self):
         page, _ = self.open("pro/", 1280)
-        self.assertEqual(page.get_attribute('[data-checkout="yearly"]', "aria-disabled"), "true")
         page.evaluate("""() => { RO_SITE.checkout.yearly = 'https://buy.polar.sh/test';
                                  RO_SITE.checkout.monthly = 'javascript:alert(1)';
-                                 RO_SITE.support = 'help@example.test'; RO_SITE_APPLY(); }""")
+                                 RO_SITE.support = 'help@example.test';
+                                 const m = document.querySelector('[data-checkout="monthly"]');
+                                 m.removeAttribute('href'); m.setAttribute('aria-disabled', 'true');
+                                 RO_SITE_APPLY(); }""")
         y = '[data-checkout="yearly"]'
         self.assertEqual(page.get_attribute(y, "href"), "https://buy.polar.sh/test")
         self.assertIsNone(page.get_attribute(y, "aria-disabled"))
         self.assertEqual(page.text_content(y), "Get pro — yearly")
         self.assertIsNone(page.get_attribute('[data-checkout="monthly"]', "href"))  # https가 아니면 켜지지 않는다
         page, _ = self.open("license/", 1280)
-        page.evaluate("() => { RO_SITE.support = 'help@example.test'; RO_SITE_APPLY(); }")
+        page.evaluate("() => { RO_SITE.portal = ''; RO_SITE.support = 'help@example.test'; document.querySelectorAll('[data-portal]').forEach(e => e.hidden = true); RO_SITE_APPLY(); }")
         self.assertEqual(page.get_attribute("[data-support]", "href"), "mailto:help@example.test")
         self.assertTrue(page.is_hidden("[data-portal]"))  # 포털 주소가 없으면 링크를 숨긴다
+
+    def test_interactive_web_pet_and_sandbox_in_browser(self):
+        page, reqs = self.open("", 1280)
+        page.click('[data-wp-mat="glass"]')
+        self.assertEqual(page.get_attribute("#webPetWrap", "data-material"), "glass")
+        page.click('[data-wp-color="orange"]')
+        self.assertEqual(page.get_attribute("#webPetWrap", "data-color"), "orange")
+        page.click("#webPetWrap")
+        self.assertEqual(page.get_attribute("#webPetWrap", "data-action"), "press")
+        self.assertTrue(all(u.startswith(self.base) for u in reqs))
+
+        page2, reqs2 = self.open("pro/", 1280)
+        page2.fill("#sandboxSearchInput", "whiteboard OCR")
+        self.assertIn("IMG_4092_whiteboard_scan.png", page2.inner_text("#sandboxResults"))
+        page2.click("#sandboxTabTidy")
+        page2.click("#sandboxApproveBtn")
+        self.assertIn("Journal V2 committed", page2.inner_text("#sandboxTidyStatus"))
+        page2.click("#sandboxUndoBtn")
+        self.assertIn("Undone", page2.inner_text("#sandboxTidyStatus"))
+        self.assertTrue(all(u.startswith(self.base) for u in reqs2))
 
 
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):

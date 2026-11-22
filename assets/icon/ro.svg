@@ -28,7 +28,7 @@
   <!-- head: the same 19:8 pill as the pet -->
   <rect x="182" y="373" width="660" height="278" rx="139" fill="url(#body)" filter="url(#drop)"/>
   <rect x="182" y="373" width="660" height="150" fill="url(#shine)" clip-path="url(#pill)"/>
-  <!-- eyes: the pet proportions (2x4, 1.75x3.25, gap 2, 9 from the left of the head) -->
-  <rect x="494" y="442" width="69" height="139" rx="34.5" fill="#1A1917"/>
-  <rect x="632" y="455" width="61" height="113" rx="30.5" fill="#1A1917"/>
+  <!-- eyes: optically balanced capsule eyes (aspect 1.38~1.41, rx=width/2) phase-locked to 16/32/64px pixel centers -->
+  <rect class="ro-eye" x="498" y="450" width="88" height="124" rx="44" ry="44" fill="#1A1917"/>
+  <rect class="ro-eye" x="634" y="458" width="78" height="108" rx="39" ry="39" fill="#1A1917"/>
 </svg>

@@ -8,11 +8,11 @@
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
-
+<script src="assets/web-pet.js" defer></script>
 </head>
 <body>
 <header class="wrap top">
-  <a class="brand" href=""><svg class="ro-mark ro-mark--brand" viewBox="0 0 145.67 139.33" aria-hidden="true"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="57" y="11.08" width="12.67" height="25.33" rx="6.33"/><rect class="ro-e" x="82.33" y="14.25" width="11.08" height="20.58" rx="5.54"/></svg>ro</a>
+  <a class="brand" href=""><svg class="ro-mark ro-mark--brand" viewBox="0 0 145.67 139.33" aria-hidden="true"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="56" y="14.2" width="16" height="22.2" rx="8"/><rect class="ro-e" x="83.5" y="15.7" width="14.2" height="19.3" rx="7.1"/></svg>ro</a>
   <nav class="nav" aria-label="Main"><a href="pro/">Pro</a><a href="license/">License</a><a href="privacy/">Privacy</a></nav>
 </header>
 <main>
@@ -21,14 +21,76 @@
   <div class="hero">
     <div>
       <h1>I won’t bother you.</h1>
-      <p class="lede">ro lives on your Mac, quietly. It sits on your desktop or in the menu bar, wanders a little, and reacts to your apps. Free.</p>
+      <p class="lede">ro lives on your Mac, quietly. Touch or rub its head right here — switch Clay or Glass, color, size, and expression.</p>
       <div class="hero-actions">
         <a class="btn" href="https://github.com/rhochoi/ro-pet/releases/latest/download/ro-pet.dmg">Download for Mac</a>
-        <a class="btn ghost" href="pro/">About pro</a>
+        <a class="btn ghost" href="pro/">Try pro sandbox</a>
       </div>
-      <p class="small muted" style="margin-top:14px">Apple Silicon · macOS 13 or later · Notarized by Apple · Updates itself</p>
+      <p class="small muted" style="margin-top:14px">Apple Silicon · macOS 13 or later · Notarized by Apple · Free</p>
     </div>
-    <svg class="ro-mark hero-art" viewBox="0 0 145.67 139.33" role="img" aria-label="ro"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="57" y="11.08" width="12.67" height="25.33" rx="6.33"/><rect class="ro-e" x="82.33" y="14.25" width="11.08" height="20.58" rx="5.54"/></svg>
+
+    <div id="web-pet-playground" class="wp-playground" aria-label="Interactive ro pet preview">
+      <div id="webPetStage" class="wp-stage wp-mat-clay wp-color-auto wp-size-medium">
+        <div id="webPetWrap" class="wp-pet-wrap wp-mood-idle" role="button" tabindex="0" aria-label="ro — click to press or rub head to pet" data-mood="idle" data-material="clay" data-color="auto" data-size="medium">
+          <div id="webPetBot" class="wp-bot">
+            <div id="webPetHead" class="wp-pill wp-pill-head">
+              <div id="webPetEyes" class="wp-eyes">
+                <span id="webPetEyeL" class="wp-eye wp-eye-l"></span>
+                <span id="webPetEyeR" class="wp-eye wp-eye-r"></span>
+                <svg class="wp-arch" viewBox="0 0 24 10" aria-hidden="true">
+                  <path d="M 2.5 7.5 C 4.5 2.5, 8.0 2.5, 10.0 7.5 M 14.0 7.5 C 16.0 2.8, 19.5 2.8, 21.5 7.5" />
+                </svg>
+              </div>
+            </div>
+            <div id="webPetBody" class="wp-pill wp-pill-body"></div>
+            <div id="webPetBase" class="wp-pill wp-pill-base"></div>
+          </div>
+        </div>
+        <div id="webPetStatus" class="wp-status" role="status" aria-live="polite">Idle · Clay · Follows your cursor, blinks, and breathes quietly.</div>
+      </div>
+
+      <div class="wp-controls" aria-label="Customize ro">
+        <div class="wp-row">
+          <span class="wp-label">Material</span>
+          <div class="wp-pills" role="group" aria-label="Material">
+            <button type="button" class="wp-chip active" data-wp-mat="clay" aria-pressed="true">Clay</button>
+            <button type="button" class="wp-chip" data-wp-mat="glass" aria-pressed="false">Glass</button>
+          </div>
+        </div>
+        <div class="wp-row">
+          <span class="wp-label">Color</span>
+          <div class="wp-pills" role="group" aria-label="Color">
+            <button type="button" class="wp-chip active" data-wp-color="auto" aria-pressed="true">System</button>
+            <button type="button" class="wp-chip" data-wp-color="light" aria-pressed="false">Light</button>
+            <button type="button" class="wp-chip" data-wp-color="dark" aria-pressed="false">Dark</button>
+            <button type="button" class="wp-chip" data-wp-color="orange" aria-pressed="false">Orange</button>
+          </div>
+        </div>
+        <div class="wp-row">
+          <span class="wp-label">Size</span>
+          <div class="wp-pills" role="group" aria-label="Size">
+            <button type="button" class="wp-chip" data-wp-size="small" aria-pressed="false">Small</button>
+            <button type="button" class="wp-chip active" data-wp-size="medium" aria-pressed="true">Medium</button>
+            <button type="button" class="wp-chip" data-wp-size="big" aria-pressed="false">Big</button>
+          </div>
+        </div>
+        <div class="wp-row">
+          <span class="wp-label">Expression</span>
+          <div class="wp-pills" role="group" aria-label="Expression">
+            <button type="button" class="wp-chip active" data-wp-mood="idle" aria-pressed="true">Idle</button>
+            <button type="button" class="wp-chip" data-wp-mood="focus" aria-pressed="false">Focus</button>
+            <button type="button" class="wp-chip" data-wp-mood="discovery" aria-pressed="false">Discovery</button>
+            <button type="button" class="wp-chip" data-wp-mood="resolved" aria-pressed="false">Resolved</button>
+            <button type="button" class="wp-chip" data-wp-mood="anxious" aria-pressed="false">Attention</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="wp-foot">
+        <span>Click to press · rub head to pet</span>
+        <button type="button" id="webPetPauseBtn" class="wp-chip" aria-pressed="false">Pause motion</button>
+      </div>
+    </div>
   </div>
 </div>
 

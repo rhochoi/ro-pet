@@ -29,6 +29,7 @@ class ProWatch:
         self.free = free
         self.stage = staging.Stage(runtime.home, runtime.log_dir, runner=runner)
         self.seek = scenarios.SeekWatch()
+        self.context_watch = scenarios.ContextSwitchWatch()
         self.show = None                 # 펫 화면이 열어야 할 카드 id
         self._notice = (None, 0.0)       # 잠깐 보여 줄 결과 한 줄(문구, 끝나는 시각)
         self._seen = set()
@@ -36,8 +37,16 @@ class ProWatch:
         self._last = {"install": 0.0, "disk": 0.0, "disk_day": None}
         self._lock = threading.Lock()
         self.recovered = self._recover()
-        runtime.nudge_handlers.update({"dmg_installed": self._on_installer, "disk_low": self._on_disk,
-                                       "old_version": self._on_old_version, "find_lost": self._on_find_lost})
+        runtime.nudge_handlers.update({
+            "dmg_installed": self._on_installer,
+            "disk_low": self._on_disk,
+            "old_version": self._on_old_version,
+            "find_lost": self._on_find_lost,
+            "archive_unpacked": self._on_archive,
+            "duplicate_found": self._on_duplicate,
+            "download_burst": self._on_download_burst,
+            "context_switch": self._on_context_switch,
+        })
 
     def _ready(self, key, now):
         """주기 확인으로 찾은 것은 사용자가 잠깐 손을 뗄 때 알린다. 10분 넘게 바쁘면 그때는 1단계로 낸다."""
@@ -88,6 +97,53 @@ class ProWatch:
                                        data={"free": free}, now=now)
                 if dec != tact.QUIET:
                     self._last["disk_day"] = day
+        # 다운로드 묶음 도착(TactGate.flush)
+        for burst in self.rt.tact.flush(now=now):
+            paths = burst.get("paths") or []
+            if len(paths) < 2:
+                continue
+            key = ("burst", burst["folder"], len(paths), int(burst["last"]))
+            if key in self._seen or not self._ready(key, now):
+                continue
+            dec, _ = self.rt.nudge("download_burst", f"다운로드에 새 파일 {len(paths)}개가 들어왔어요", "정리 후보 보기",
+                                   data={"folder": burst["folder"], "paths": paths}, folder=burst["folder"], now=now)
+            if dec != tact.QUIET:
+                self._seen.add(key)
+            break
+        # 이미 풀린 압축 파일(.zip) 잔존
+        for arc in scenarios.unpacked_archives(self.downloads, now=now):
+            key = ("archive", arc["path"])
+            if key in self._seen or not self._ready(key, now):
+                continue
+            dec, _ = self.rt.nudge("archive_unpacked",
+                                   f"{_short(Path(arc['path']).name, 26)} 압축이 이미 풀려 있어요",
+                                   "압축 원본 격리", data=arc, folder=self.downloads, now=now)
+            if dec != tact.QUIET:
+                self._seen.add(key)
+            break
+        # 다운로드 중복 사본 감지
+        dups = [d for d in scenarios.duplicate_downloads(self.downloads, now=now) if ("dup", d["path"]) not in self._seen]
+        if dups:
+            key = ("dup", dups[0]["path"])
+            if self._ready(key, now):
+                dec, _ = self.rt.nudge("duplicate_found",
+                                       f"다운로드에 중복 사본 {len(dups)}개가 있어요",
+                                       "중복 정리 카드", data={"items": dups}, folder=self.downloads, now=now)
+                if dec != tact.QUIET:
+                    for d in dups:
+                        self._seen.add(("dup", d["path"]))
+
+    def on_front(self, app_name, now=None):
+        """앞 앱 전환 시 AI 도구 간 작업 전환을 감지한다(비밀 앱은 TactGate가 이미 걸렀다)."""
+        now = time.time() if now is None else now
+        if not self.rt.tact.consented() or (self.rt.tact.front and self.rt.tact.front.get("private")):
+            return None
+        hit = self.context_watch.on_app(app_name, now=now)
+        if not hit:
+            return None
+        return self.rt.nudge("context_switch",
+                             f"{hit['from']}에서 {hit['to']}(으)로 도구를 바꿨어요",
+                             "인수인계 보기", data=hit, now=now)
 
     def on_ax(self, ev, front_app, now=None):
         doc = ev.get("document")
@@ -195,6 +251,54 @@ class ProWatch:
         self._reveal(data["path"])
 
     def _on_find_lost(self, data, promoted=False):
+        self.rt.send_host({"cmd": "palette"})
+
+    def _on_archive(self, data, promoted=False):
+        """풀린 압축 원본은 승인 없이 옮기지 않고 확인 카드(staging)를 열어 사용자가 1-클릭 승인/되돌리기 하게 한다."""
+        p = Path(data["path"])
+        try:
+            it = staging.item("quarantine", p, 0.95, "같은 이름의 폴더가 풀려 있음", size=p.stat().st_size)
+            self.show = self.stage.open("archive", "archive_unpacked", [it], [p.parent], "압축 원본 격리")
+        except (staging.StageError, OSError) as e:
+            self.notice = str(e)
+
+    def _on_duplicate(self, data, promoted=False):
+        """중복 파일 묶음을 확인 카드(staging)로 열어 승인 전에는 파일을 건드리지 않는다."""
+        raw_items = data.get("items") or ([data] if data.get("path") else [])
+        items, roots = [], set()
+        for d in raw_items:
+            p = Path(d["path"])
+            if not p.exists():
+                continue
+            try:
+                sz = p.stat().st_size
+            except OSError:
+                continue
+            items.append(staging.item("quarantine", p, 0.95, "내용이 같은 중복 사본", size=sz))
+            roots.add(str(p.parent))
+        if not items:
+            self.notice = "지금 치울 만한 후보를 찾지 못했어요"
+            return
+        try:
+            self.show = self.stage.open("duplicate", "duplicate_found", items, sorted(roots), "중복 정리 카드")
+        except staging.StageError as e:
+            self.notice = str(e)
+
+    def _on_download_burst(self, data, promoted=False):
+        """다운로드 유입 묶음 정리: 확인 카드(staging)만 열고 승인 전에는 이동하지 않는다."""
+        folder = data.get("folder") or self.downloads
+        try:
+            cid = self._build_organize_card(root=folder)
+        except staging.StageError as e:
+            self.notice = str(e)
+            return
+        if cid is None:
+            self.notice = "지금 정리할 파일이 없어요"
+            return
+        self.show = cid
+
+    def _on_context_switch(self, data, promoted=False):
+        """AI 도구 전환 시 명령 팔레트를 열어 인수인계를 바로 확인하게 한다(쓰기 없음)."""
         self.rt.send_host({"cmd": "palette"})
 
     def _reveal(self, path):
