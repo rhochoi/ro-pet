@@ -150,6 +150,44 @@ class SiteDesignTest(unittest.TestCase):
         self.assertTrue((SITE / "demo-src/kit/LICENSE").exists())
 
 
+class SiteRoamStaticTest(unittest.TestCase):
+    """사이트를 돌아다니는 ro(site/assets/ro-roam): 모든 쪽에 붙고, 요청을 보내지 않고, 먼저 말하지 않는다."""
+    JS = SITE / "assets/ro-roam/ro-roam.js"
+    CSS = SITE / "assets/ro-roam/ro-roam.css"
+
+    def test_every_page_loads_ro_from_its_own_origin(self):
+        for page in PAGES:
+            html = (SITE / page).read_text(encoding="utf-8")
+            depth = "" if page == "index.html" else "../"
+            self.assertIn(f'<script src="{depth}assets/ro-roam/ro-roam.js"', html, page)
+            self.assertIn(f'href="{depth}assets/ro-roam/ro-roam.css"', html, page)
+        self.assertIn('data-page="home"', (SITE / "index.html").read_text(encoding="utf-8"))
+        self.assertIn('data-page="pro"', (SITE / "pro/index.html").read_text(encoding="utf-8"))
+
+    def test_roam_sends_nothing_and_stores_little(self):
+        js = self.JS.read_text(encoding="utf-8")
+        for call in ("fetch(", "XMLHttpRequest", "WebSocket", "sendBeacon", "localStorage", "document.cookie", "new Image"):
+            self.assertNotIn(call, js)
+        self.assertIn("sessionStorage", js)                  # 서 있던 자리와 쉬기 선택만, 탭을 닫으면 사라진다
+
+    def test_roam_respects_motion_and_brand(self):
+        js, css = self.JS.read_text(encoding="utf-8"), self.CSS.read_text(encoding="utf-8")
+        self.assertIn("prefers-reduced-motion", js)          # 동작 줄이기면 돌아다니지 않는다
+        self.assertIn("Let ro rest", js)                     # WCAG 2.2.2: 움직임을 멈출 수 있다
+        self.assertIn("Alt+R", js)                           # 앱과 같은 ⌥R
+        for text in (js, css):
+            self.assertNotIn("F3874E", text.upper())          # 사이트에 주황은 없다
+        self.assertIn('class: "ro-mark rr-svg"', js)         # 같은 ro 마크(먹 층, 다크에선 반전)
+
+    def test_roam_never_speaks_first(self):
+        js = self.JS.read_text(encoding="utf-8")
+        # 말풍선은 사용자의 행동(클릭·단축키·질문)에서만 열린다. 타이머가 openPanel/respond를 부르지 않는다
+        for line in js.splitlines():
+            if "setInterval" in line or "setTimeout" in line:
+                self.assertNotIn("openPanel()", line)
+        self.assertNotIn("setInterval(openPanel", js)
+
+
 class SiteTruthTest(unittest.TestCase):
     """2026-11-20 리뷰에서 나온 것: 사이트 문구가 실제 앱·빌드·발급 메일과 같아야 한다."""
     ROOT = SITE.parent
@@ -551,9 +589,53 @@ class SiteBrowserTest(unittest.TestCase):
         for path in ("", "pro/", "thanks/", "license/", "privacy/", "terms/", "refund/"):
             for width in (375, 1280):
                 page, requests = self.open(path, width)
+                if path == "license/":
+                    page.wait_for_url("**/pro/**")   # 옛 주소는 /pro로 넘어간다. 넘어간 쪽을 잰다
                 overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
                 self.assertLessEqual(overflow, 0, f"{path} @ {width}px")
                 self.assertTrue(all(u.startswith(self.base) for u in requests), requests)
+
+    def test_ro_walks_the_page_and_answers_from_the_page(self):
+        page, requests = self.open("", 1280)
+        page.wait_for_selector("#rr-root .rr-body")
+        self.assertIn("rr-live", page.get_attribute("html", "class"))
+        page.keyboard.press("Alt+r")
+        page.wait_for_selector(".rr-panel", state="visible", timeout=5000)
+        page.fill("#rr-q", "how much is pro")
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.querySelector('.rr-say').textContent.includes('Prices are in USD')", timeout=5000)
+        self.assertIn("$3 a month", page.text_content(".rr-say"))
+        page.fill("#rr-q", "weather forecast tomorrow")
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.querySelector('.rr-say').textContent.includes('or the download')", timeout=5000)
+        page.keyboard.press("Escape")
+        self.assertTrue(page.is_hidden(".rr-panel"))
+        self.assertTrue(all(u.startswith(self.base) for u in requests), requests)
+
+    def test_ro_rests_and_reduced_motion_keeps_it_home(self):
+        page, _ = self.open("pro/", 1280)
+        page.wait_for_selector(".rr-toggle")
+        page.click(".rr-toggle")
+        self.assertEqual(page.get_attribute(".rr-toggle", "aria-pressed"), "true")
+        self.assertTrue(page.evaluate("RO_ROAM.state().rest"))
+        ctx = self.browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce")
+        self.addCleanup(ctx.close)
+        calm = ctx.new_page()
+        calm.goto(self.base)
+        calm.wait_for_selector("#rr-root .rr-body")
+        calm.wait_for_timeout(3500)
+        self.assertEqual(calm.evaluate("RO_ROAM.state().perch"), "home")    # 동작 줄이기: 히어로 카드에서 나가지 않는다
+        self.assertTrue(calm.is_hidden(".rr-toggle"))
+
+    def test_ro_fits_small_screens_on_every_page(self):
+        for path in ("", "pro/", "privacy/"):
+            page, _ = self.open(path, 375)
+            page.wait_for_selector("#rr-root .rr-body")
+            page.keyboard.press("Alt+r")
+            page.wait_for_selector(".rr-panel", state="visible")
+            box = page.eval_on_selector(".rr-panel", "e => { const r = e.getBoundingClientRect(); return [r.left, r.right]; }")
+            self.assertGreaterEqual(box[0], 0, path)
+            self.assertLessEqual(box[1], 375, path)
 
     def test_filled_checkout_turns_buttons_on(self):
         page, _ = self.open("pro/", 1280)

@@ -1,0 +1,81 @@
+/* ro, walking around the site. Ink on cream (cream on ink in dark mode), same marks as the rest of the page.
+   Nothing here makes a request; the layer sits above the page and only ro and its bubble take clicks. */
+#rr-root { position: fixed; inset: 0; z-index: 50; pointer-events: none; --rw: 64px; }
+@media (max-width: 640px) { #rr-root { --rw: 54px; } }
+
+.rr { position: absolute; left: 0; top: 0; width: var(--rw); aspect-ratio: 176 / 154; transform-origin: 44.8% 97%; will-change: transform; }
+.rr-fig { position: absolute; inset: 0; transform-origin: 44.8% 97%; }
+.rr-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.rr-body {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; margin: 0; border: 0; background: transparent;
+  border-radius: 14px; cursor: grab; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.rr-body:active, .rr.is-drag .rr-body { cursor: grabbing; }
+.rr-body:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+/* a tiny murmur: only ever a reaction to something the visitor did */
+.rr-murmur {
+  position: absolute; left: 0; top: 0; max-width: 180px; padding: 5px 11px; border-radius: 999px; font: 600 13px/1.3 var(--sans);
+  background: var(--ink); color: var(--paper); white-space: nowrap; opacity: 0; transition: opacity .18s; pointer-events: none;
+}
+.rr-murmur.is-on { opacity: 1; }
+
+/* the bubble: answer on top, input at the bottom, ro right below it (same order as the app's ⌥R panel) */
+.rr-panel {
+  position: absolute; left: 0; top: 0; width: min(340px, calc(100vw - 16px)); padding: 14px 14px 10px; border-radius: 20px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); pointer-events: auto;
+  box-shadow: 0 14px 40px -12px rgba(26, 25, 23, .28); font: 15px/1.5 var(--sans); --tail: 50%;
+}
+.rr-panel[hidden] { display: none; }
+.rr-panel::after {
+  content: ""; position: absolute; left: var(--tail); bottom: -7px; width: 12px; height: 12px; background: var(--card);
+  border: solid var(--line); border-width: 0 1px 1px 0; transform: translateX(-50%) rotate(45deg);
+}
+.rr-panel[data-side="below"]::after { bottom: auto; top: -7px; border-width: 1px 0 0 1px; }
+.rr-say { margin: 0; min-height: 1.5em; text-wrap: pretty; }
+.rr-say:empty { display: none; }
+.rr-chips, .rr-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rr-chips:empty, .rr-links:empty { display: none; }
+.rr-chip, .rr-links a {
+  display: inline-flex; align-items: center; min-height: 34px; padding: 0 13px; border-radius: 999px; border: 0; cursor: pointer;
+  background: transparent; color: var(--ink); font: 600 13.5px/1 var(--sans); box-shadow: inset 0 0 0 1.5px var(--line); text-decoration: none;
+}
+.rr-chip:hover, .rr-links a:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.rr-links a { background: var(--ink); color: var(--paper); box-shadow: none; }
+.rr-links a:hover { opacity: .88; }
+.rr-ask { display: flex; gap: 8px; margin-top: 12px; }
+.rr-ask input {
+  flex: 1; min-width: 0; height: 42px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--line);
+  background: var(--paper); color: var(--ink); font: 16px/1 var(--sans);
+}
+.rr-ask input::placeholder { color: var(--muted); }
+.rr-ask input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-color: transparent; }
+.rr-ask button {
+  width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--ink); color: var(--paper); font: 600 16px/1 var(--sans); cursor: pointer;
+}
+.rr-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.rr-foot button { min-height: 32px; padding: 0 4px; border: 0; background: transparent; color: var(--muted); font: 600 12.5px/1 var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.rr-foot button:hover { color: var(--ink); }
+.rr-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* the hero card is ro's home. While it is out, the card says so. */
+.hero-stage { position: relative; }
+.rr-live .hero-stage .hero-art { visibility: hidden; }
+.rr-away { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; }
+.rr-live .hero-stage.is-away .rr-away { display: flex; }
+.rr-away strong { font: 750 22px/1.2 var(--display); letter-spacing: -.02em; }
+.rr-away span { font-size: 15px; color: var(--muted); max-width: 18em; }
+.rr-away button {
+  margin-top: 10px; min-height: 40px; padding: 0 18px; border-radius: 999px; border: 0; cursor: pointer;
+  background: transparent; color: var(--ink); font: 600 14px/1 var(--sans); box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.rr-away button:hover { background: var(--ink); color: var(--paper); }
+@media (max-width: 760px) { .rr-away { padding: 12px; gap: 3px; } .rr-away strong { font-size: 16px; } .rr-away span { font-size: 12.5px; } .rr-away button { min-height: 34px; padding: 0 12px; font-size: 12.5px; margin-top: 4px; } }
+
+.rr-toggle { border: 0; background: transparent; padding: 0; color: inherit; font: inherit; cursor: pointer; display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
+.rr-toggle:hover { color: var(--ink); }
+.rr-toggle:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+
+@media print { #rr-root { display: none; } }
+@media (prefers-reduced-motion: reduce) { .rr-murmur { transition: none; } }
+.rr-toggle[hidden] { display: none; }
