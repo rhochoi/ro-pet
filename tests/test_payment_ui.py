@@ -34,8 +34,6 @@ class PaymentScreenMarkupAndWiringTest(unittest.TestCase):
                 'id="proPlanYearly"',
                 'id="proPlanMonthly"',
                 'id="proCheckoutBtn"',
-                'id="proKeyInput"',
-                'id="proKeySaveBtn"',
                 'id="proRestartBtn"',
                 "$24",
                 "$3",

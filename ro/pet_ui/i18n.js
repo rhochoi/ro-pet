@@ -192,7 +192,7 @@ const RoI18n = (() => {
     "이 버전의 ro가 알지 못하는 키입니다. ro를 업데이트해 보세요.": "This version of ro doesn't recognize this key. Try updating ro.",
     "키 서명이 맞지 않습니다. 받은 키를 그대로 붙여 넣었는지 확인하세요.": "Key signature didn't match. Check that you pasted the full key.",
     "키 내용이 올바르지 않습니다.": "License key contents are invalid.",
-    "자동 구매가 아직 준비되지 않았어요. 사이트에서 사면 키가 메일로 와요.": "Online checkout opens soon. Already have a key? Enter it in the License key tab.",
+    "자동 구매가 아직 준비되지 않았어요. 잠시 뒤 다시 시도해 주세요.": "Online checkout isn't ready yet. Please try again shortly.",
   };
   const T = (s) => text(s);
   const SINGULAR = {
@@ -342,7 +342,7 @@ const RoI18n = (() => {
     "on must be true or false.": "on은 true/false여야 합니다.",
     "Unsupported activity action.": "지원하지 않는 활동 기록 명령이에요.",
     // 인앱 결제·라이선스 화면 (영어 원문 → 한국어)
-    "Free": "무료", "Pro": "Pro", "Upgrade to Pro": "Pro 업그레이드", "License key": "라이선스 키", "Manage license": "라이선스 관리",
+    "Free": "무료", "Pro": "Pro", "Upgrade to Pro": "Pro 업그레이드", "License key": "라이선스 키", "License": "라이선스", "Manage license": "라이선스 관리",
     "Upgrade": "업그레이드", "Close (Esc)": "닫기 (Esc)", "Close": "닫기", "Pro and license": "Pro 및 라이선스",
     "Find files by asking, tidy Downloads with undo, and hand off between AI tools — all on this Mac.":
       "말로 파일 찾기, 되돌릴 수 있는 다운로드 정리, AI 도구 인수인계 — 모두 이 Mac 안에서만 동작해요.",
@@ -356,11 +356,9 @@ const RoI18n = (() => {
     "Continue to checkout": "결제 계속하기",
     "Checkout opened in your browser. Once payment completes, ro activates Pro automatically.":
       "브라우저에서 결제창을 열었어요. 결제가 끝나면 ro가 자동으로 Pro를 켜요.",
-    "Online checkout opens soon. Already have a key? Enter it in the License key tab.":
-      "온라인 결제가 곧 열려요. 이미 키가 있다면 라이선스 키 탭에 입력해 주세요.",
+    "Online checkout opens soon.": "온라인 결제가 곧 열려요.",
     "Check activation now": "활성화 지금 확인", "Paste key instead": "키 직접 입력",
-    "Still waiting for payment confirmation. You can also paste your email key anytime.":
-      "결제 확인을 기다리고 있어요. 이메일로 받은 키를 바로 붙여 넣으셔도 돼요.",
+    "Still waiting for payment confirmation.": "결제 확인을 기다리고 있어요.",
     "Pro license active!": "Pro 라이선스가 활성화됐어요!",
     "14-day refund · All your personal Macs · Secure checkout via Polar":
       "14일 환불 · 개인 Mac 여러 대 사용 · Polar 안전 결제",

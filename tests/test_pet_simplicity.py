@@ -239,9 +239,11 @@ class PetSimplicityTests(unittest.TestCase):
                     "No nested <details> allowed; every collapsed control must remain <= 2 clicks",
                 )
 
-        # In-app payment / license modal actions are <= 2 clicks (Click 1: #proOpenBuyBtn or #proOpenKeyBtn, Click 2: #proCheckoutBtn or #proKeySaveBtn)
+        # In-app payment / license modal actions are <= 2 clicks (Click 1: #proOpenBuyBtn, Click 2: #proCheckoutBtn).
+        # 키는 사용자가 입력하지 않는다(결제 후 자동 활성화) — 키 입력 칸이 다시 생기지 않게 막는다
         self.assertIn('id="proCheckoutBtn"', html)
-        self.assertIn('id="proKeySaveBtn"', html)
+        self.assertNotIn('id="proKeyInput"', html)
+        self.assertNotIn('id="proKeySaveBtn"', html)
 
     def test_micro_feedback_latency_is_under_50ms_and_never_steals_focus(self) -> None:
         js = PET_JS.read_text(encoding="utf-8")

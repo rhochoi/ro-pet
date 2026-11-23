@@ -371,7 +371,7 @@ class PetRuntime:
                 return {"ok": False, "error": "Unsupported plan."}
             url = licensenet.buy_url(plan, self.home)
             if not url:
-                return {"ok": False, "error": "자동 구매가 아직 준비되지 않았어요. 사이트에서 사면 키가 메일로 와요."}
+                return {"ok": False, "error": "자동 구매가 아직 준비되지 않았어요. 잠시 뒤 다시 시도해 주세요."}
             return {"ok": True, "url": url, "pending": True}
         if act == "auto":
             if not isinstance(data.get("on"), bool):

@@ -2855,19 +2855,12 @@ const proCheckoutBtn = document.getElementById("proCheckoutBtn");
 const proCheckoutMsg = document.getElementById("proCheckoutMsg");
 const proPendingRow = document.getElementById("proPendingRow");
 const proCheckNowBtn = document.getElementById("proCheckNowBtn");
-const proSwitchToKeyBtn = document.getElementById("proSwitchToKeyBtn");
 const proKeyStatus = document.getElementById("proKeyStatus");
-const proKeyInput = document.getElementById("proKeyInput");
-const proKeySaveBtn = document.getElementById("proKeySaveBtn");
 const proKeyFeedback = document.getElementById("proKeyFeedback");
 const proRestartBar = document.getElementById("proRestartBar");
 const proRestartBtn = document.getElementById("proRestartBtn");
 const proAutoRow = document.getElementById("proAutoRow");
 const proAutoToggle = document.getElementById("proAutoToggle");
-const proRemoveRow = document.getElementById("proRemoveRow");
-const proRemoveBtn = document.getElementById("proRemoveBtn");
-const proRemoveConfirmBtn = document.getElementById("proRemoveConfirmBtn");
-const proRemoveCancelBtn = document.getElementById("proRemoveCancelBtn");
 
 let proSelectedPlan = "yearly";
 let proLicenseState = null;
@@ -2885,7 +2878,6 @@ function setProModalTab(tab) {
   proTabKey.setAttribute("aria-selected", String(!isBuy));
   proBuyView.hidden = !isBuy;
   proKeyView.hidden = isBuy;
-  if (!isBuy && proKeyInput) setTimeout(() => proKeyInput.focus(), 20);
 }
 
 function selectProPlan(plan) {
@@ -2911,7 +2903,7 @@ function renderProLicenseState(st) {
       : "Find files by asking, tidy Downloads with undo, and hand off between AI tools — all on this Mac.";
   }
   if (proOpenKeyBtn) {
-    proOpenKeyBtn.textContent = activePro ? "Manage license" : "License key";
+    proOpenKeyBtn.textContent = activePro ? "Manage license" : "License";
   }
   if (proKeyStatus) {
     proKeyStatus.textContent = st.message || (activePro ? "Pro active" : "Free (mini)");
@@ -2919,13 +2911,6 @@ function renderProLicenseState(st) {
   if (proAutoRow && proAutoToggle) {
     proAutoRow.hidden = !st.autoReady;
     proAutoToggle.checked = st.auto !== false;
-  }
-  const hasKey = st.state && st.state !== "none";
-  if (proRemoveRow) {
-    proRemoveRow.hidden = !hasKey;
-    proRemoveBtn.hidden = false;
-    proRemoveConfirmBtn.hidden = true;
-    proRemoveCancelBtn.hidden = true;
   }
   if (proRestartBar && st.restart) proRestartBar.hidden = false;
   if (st.pending && !activePro && proCheckoutMsg && proPendingRow) {
@@ -3005,7 +2990,7 @@ async function checkProActivation(silent) {
           proRestartBar.hidden = false;
         }
       } else if (!silent && proCheckoutMsg) {
-        proCheckoutMsg.textContent = "Still waiting for payment confirmation. You can also paste your email key anytime.";
+        proCheckoutMsg.textContent = "Still waiting for payment confirmation.";
         proCheckoutMsg.hidden = false;
       }
     }
@@ -3040,7 +3025,7 @@ if (proCheckoutBtn) {
         startProPendingPoll();
       } else {
         proCheckoutMsg.textContent = (res && res.error)
-          || "Online checkout opens soon. Already have a key? Enter it in the License key tab.";
+          || "Online checkout opens soon.";
         proCheckoutMsg.hidden = false;
         proPendingRow.hidden = false;
         if (proCheckNowBtn) proCheckNowBtn.hidden = !(proLicenseState && proLicenseState.autoReady);
@@ -3055,41 +3040,7 @@ if (proCheckoutBtn) {
 }
 
 if (proCheckNowBtn) proCheckNowBtn.addEventListener("click", () => checkProActivation(false));
-if (proSwitchToKeyBtn) proSwitchToKeyBtn.addEventListener("click", () => setProModalTab("key"));
 
-async function submitProKey() {
-  const key = (proKeyInput && proKeyInput.value || "").trim();
-  if (!key) {
-    proKeyFeedback.textContent = "Paste a license key starting with RO1.";
-    proKeyFeedback.classList.add("err");
-    return;
-  }
-  proKeySaveBtn.disabled = true;
-  try {
-    const res = await apiPost("/api/license", { action: "set", key });
-    if (proKeyInput) proKeyInput.value = "";
-    if (res && res.ok) {
-      proKeyFeedback.classList.remove("err");
-      proKeyFeedback.textContent = res.message || "License saved.";
-      renderProLicenseState(res);
-      if (proRestartBar) proRestartBar.hidden = !res.restart;
-    } else {
-      proKeyFeedback.classList.add("err");
-      proKeyFeedback.textContent = (res && res.error) || "Could not save the key.";
-    }
-  } catch (e) {
-    proKeyFeedback.classList.add("err");
-    proKeyFeedback.textContent = "Could not reach the server";
-  } finally {
-    proKeySaveBtn.disabled = false;
-  }
-}
-if (proKeySaveBtn) proKeySaveBtn.addEventListener("click", submitProKey);
-if (proKeyInput) {
-  proKeyInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); submitProKey(); }
-  });
-}
 
 if (proAutoToggle) {
   proAutoToggle.addEventListener("change", async () => {
@@ -3102,36 +3053,6 @@ if (proAutoToggle) {
   });
 }
 
-if (proRemoveBtn) {
-  proRemoveBtn.addEventListener("click", () => {
-    proRemoveBtn.hidden = true;
-    proRemoveConfirmBtn.hidden = false;
-    proRemoveCancelBtn.hidden = false;
-  });
-}
-if (proRemoveCancelBtn) {
-  proRemoveCancelBtn.addEventListener("click", () => {
-    proRemoveBtn.hidden = false;
-    proRemoveConfirmBtn.hidden = true;
-    proRemoveCancelBtn.hidden = true;
-  });
-}
-if (proRemoveConfirmBtn) {
-  proRemoveConfirmBtn.addEventListener("click", async () => {
-    proRemoveConfirmBtn.disabled = true;
-    try {
-      const res = await apiPost("/api/license", { action: "remove" });
-      if (res && res.ok) {
-        proKeyFeedback.classList.remove("err");
-        proKeyFeedback.textContent = "Key removed. Your files and records stay as they are.";
-        renderProLicenseState(res);
-        if (proRestartBar) proRestartBar.hidden = !res.restart;
-      }
-    } finally {
-      proRemoveConfirmBtn.disabled = false;
-    }
-  });
-}
 
 if (proRestartBtn) {
   proRestartBtn.addEventListener("click", () => {

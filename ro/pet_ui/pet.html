@@ -151,7 +151,7 @@ __RO_CSS__</style>
           <div id="proPlanSub" class="block-sub">Find files by asking, tidy Downloads with undo, and hand off between AI tools — all on this Mac.</div>
           <div class="options-row">
             <button id="proOpenBuyBtn" class="opt-btn pro-cta-btn mini-only" type="button">Upgrade to Pro</button>
-            <button id="proOpenKeyBtn" class="opt-btn" type="button">License key</button>
+            <button id="proOpenKeyBtn" class="opt-btn" type="button">License</button>
           </div>
         </div>
 
@@ -319,7 +319,7 @@ __RO_CSS__</style>
         <div class="pro-modal-body">
           <div class="segmented pro-modal-tabs" role="tablist" aria-label="Pro and license">
             <button id="proTabBuy" class="opt-btn active" type="button" role="tab" aria-selected="true" aria-controls="proBuyView">Upgrade</button>
-            <button id="proTabKey" class="opt-btn" type="button" role="tab" aria-selected="false" aria-controls="proKeyView">License key</button>
+            <button id="proTabKey" class="opt-btn" type="button" role="tab" aria-selected="false" aria-controls="proKeyView">License</button>
           </div>
 
           <div id="proBuyView" class="pro-view" role="tabpanel" aria-labelledby="proTabBuy">
@@ -349,18 +349,12 @@ __RO_CSS__</style>
             <div id="proCheckoutMsg" class="pro-notice" role="status" aria-live="polite" hidden></div>
             <div id="proPendingRow" class="pro-inline-actions" hidden>
               <button id="proCheckNowBtn" class="opt-btn" type="button">Check activation now</button>
-              <button id="proSwitchToKeyBtn" class="opt-btn" type="button">Paste key instead</button>
             </div>
             <div class="pro-trust">14-day refund · All your personal Macs · Secure checkout via Polar</div>
           </div>
 
           <div id="proKeyView" class="pro-view" role="tabpanel" aria-labelledby="proTabKey" hidden>
             <div id="proKeyStatus" class="pro-status-box">Checking license status…</div>
-            <label for="proKeyInput" class="pro-field-label">Paste the key from your purchase email (starts with RO1.)</label>
-            <div class="pro-key-row">
-              <input id="proKeyInput" class="fd-input pro-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="RO1.…" aria-label="License key" />
-              <button id="proKeySaveBtn" class="opt-btn pro-cta-btn" type="button">Save key</button>
-            </div>
             <div id="proKeyFeedback" class="pro-feedback" role="status" aria-live="polite"></div>
             <div id="proRestartBar" class="pro-restart-bar" hidden>
               <div class="pro-restart-text">Restart ro to apply your license change. Your files and records stay as they are.</div>
@@ -375,11 +369,6 @@ __RO_CSS__</style>
                 <input id="proAutoToggle" type="checkbox" aria-label="Get my key automatically" checked>
                 <span class="slider"></span>
               </label>
-            </div>
-            <div id="proRemoveRow" class="pro-remove-row" hidden>
-              <button id="proRemoveBtn" class="opt-btn" type="button">Remove key</button>
-              <button id="proRemoveConfirmBtn" class="opt-btn pro-danger-btn" type="button" hidden>Confirm remove</button>
-              <button id="proRemoveCancelBtn" class="opt-btn" type="button" hidden>Cancel</button>
             </div>
           </div>
         </div>
