@@ -14,7 +14,7 @@ CSS = "\n".join(re.findall(r"<style[^>]*>(.*?)</style>", pet.PET_HTML, re.S))
 
 # 목표 값(DESIGN-SYSTEM.md 2절). 이 밖의 값은 정리 대상이다.
 RADIUS_TARGET = {"999px", "50%", "12px", "6px", "0", "inherit", "999px 999px 0 0"}
-FONT_TARGET = {"11px", "13px", "15px", "20px"}
+FONT_TARGET = {"12px", "13px", "15px", "20px"}  # 11px 폐지(2026-11-23, UX-STATUS-SETTINGS-RESEARCH ③)
 # 래칫 상한(2026-11-07 상태창 재설계 후 측정값). 정리하면서 내린다. 올리지 않는다.
 RADIUS_OFF_TARGET_MAX = 2
 FONT_OFF_TARGET_MAX = 0
@@ -25,6 +25,30 @@ ACCENT_ALLOWED = {".attn-dot", ".rec-org-dot"}
 
 def _values(prop):
     return [v.replace("!important", "").strip() for v in re.findall(rf"{prop}:\s*([^;]+);", CSS)]
+
+
+def _font_sizes():
+    """font-size와 font 축약형(예: font: 600 12px/1.4 ...) 둘 다에서 글자 크기를 뽑는다."""
+    sizes = _values("font-size")
+    for v in re.findall(r"(?<![-\w])font:\s*([^;]+);", CSS):
+        m = re.search(r"(?:^|\s)(\d+(?:\.\d+)?px)(?:/|\s)", v)
+        if m:
+            sizes.append(m.group(1))
+    return sizes
+
+
+def apca(text, bg):
+    """APCA-W3 0.0.98G-4g 절댓값 Lc(https://github.com/Myndex/apca-w3)."""
+    def y(h):
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        v = 0.2126729 * r ** 2.4 + 0.7151522 * g ** 2.4 + 0.0721750 * b ** 2.4
+        return v + (0.022 - v) ** 1.414 if v < 0.022 else v
+    yt, yb = y(text), y(bg)
+    if yb > yt:
+        s = (yb ** 0.56 - yt ** 0.57) * 1.14
+        return 0 if s < 0.1 else (s - 0.027) * 100
+    s = (yb ** 0.65 - yt ** 0.62) * 1.14
+    return 0 if s > -0.1 else -(s + 0.027) * 100
 
 
 def _block(selector):
@@ -61,9 +85,9 @@ class DesignLintTest(unittest.TestCase):
                              f"모서리는 999px·12px·6px만 쓴다(DESIGN-SYSTEM.md). 새로 늘어난 값: {sorted(set(off))}")
 
     def test_font_size_off_target_does_not_grow(self):
-        off = [v for v in _values("font-size") if v not in FONT_TARGET]
+        off = [v for v in _font_sizes() if v not in FONT_TARGET]
         self.assertLessEqual(len(off), FONT_OFF_TARGET_MAX,
-                             f"글자 크기는 11·13·15·20px만 쓴다. 목표 밖 값: {sorted(set(off))}")
+                             f"글자 크기는 12·13·15·20px만 쓴다(11px 금지). 목표 밖 값: {sorted(set(off))}")
 
     def test_accent_only_marks_exceptions(self):
         # 원칙 2·색감 A: 주황은 펼쳐진 예외(사람이 판단할 곳)에만. 버튼·포커스·선택·막대는 잉크나 밤색
@@ -93,6 +117,16 @@ class DesignLintTest(unittest.TestCase):
                 with self.subTest(theme=name, fg=fg, bg=bg):
                     ratio = contrast(resolve(theme, fg), resolve(theme, bg))
                     self.assertGreaterEqual(ratio, 4.5, f"{name} {fg} on {bg} = {ratio:.2f}")
+
+    def test_small_text_tokens_meet_apca(self):
+        # 12–13px 보조 글자는 APCA Lc 75 이상(Bronze 단순화 기준, 연구 문서 ③). WCAG 4.5:1만으로는 다크 #9E988C(Lc 44.5)를 못 잡는다
+        light, dark = _themes()
+        for name, theme in (("밝은 면", light), ("어두운 면", dark)):
+            for fg, bg in (("--panel-fg", "--panel-bg"), ("--muted", "--panel-bg"), ("--muted", "--panel-soft")):
+                with self.subTest(theme=name, fg=fg, bg=bg):
+                    lc = apca(theme[fg], theme[bg])
+                    self.assertGreaterEqual(lc, 75, f"{name} {fg} on {bg} = Lc {lc:.1f}")
+        self.assertGreaterEqual(apca(light["--accent-text"], light["--panel-bg"]), 75)
 
     def test_ro_orange_is_softer_than_accent_and_keeps_ink_eyes(self):
         light, _ = _themes()

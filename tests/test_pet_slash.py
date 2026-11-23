@@ -155,7 +155,7 @@ class SlashTest(unittest.TestCase):
         self.page.evaluate("checkConnect()")
         self.page.wait_for_selector("#tabBtnSettings .conn-badge")
         bg = self.page.eval_on_selector("#tabBtnSettings .conn-badge", "e => getComputedStyle(e).backgroundColor")
-        self.assertEqual(bg, "rgb(188, 47, 14)")  # --accent-text #BC2F0E, 흰 글자 5.9:1
+        self.assertEqual(bg, "rgb(158, 37, 10)")  # --accent-text #9E250A, 흰 글자(패널 바탕) 8.5:1
         self.assertEqual(self.page.get_attribute("#tabBtnSettings", "aria-label"), "Settings, 연결할 항목 1개")
         self.plan.return_value = {"ok": True, "id": "p0", "notes": [], "items": []}
         self.page.evaluate("checkConnect()")

@@ -70,7 +70,7 @@ class PetLayoutTest(unittest.TestCase):
                 const visible = el => el.checkVisibility() && el.getBoundingClientRect().height > 0;
                 const leaves = [...bubble.querySelectorAll('*')].filter(el => visible(el) && !el.children.length && el.textContent.trim());
                 const controls = [...bubble.querySelectorAll('button,input,select,summary,[role="option"],.switch')].filter(visible);
-                const small = controls.filter(el => { const r = el.getBoundingClientRect(); return r.width < 24 || r.height < 24; });
+                const small = controls.filter(el => { const r = el.getBoundingClientRect(); return r.width < 28 || r.height < 28; });  // 누르는 곳 28px 미만 금지(DESIGN-SYSTEM 2.5)
                 return {height: bubble.getBoundingClientRect().height,
                         y: document.querySelector('.nav-tabs').getBoundingClientRect().y,
                         minFont: Math.min(...leaves.map(el => parseFloat(getComputedStyle(el).fontSize))),
@@ -80,7 +80,7 @@ class PetLayoutTest(unittest.TestCase):
         self.assertEqual(len({m["y"] for m in measurements}), 1, measurements)
         self.assertEqual(measurements[0]["height"], 602)
         for m in measurements:
-            self.assertGreaterEqual(m["minFont"], 11, m)
+            self.assertGreaterEqual(m["minFont"], 12, m)  # 11px 폐지(2026-11-23)
             self.assertEqual(m["small"], [], m)
 
     def test_no_clear_notice_control(self):
