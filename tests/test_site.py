@@ -256,111 +256,23 @@ class SiteInteractiveSandboxTest(unittest.TestCase):
     """Track B: 살아 있는 인터랙티브 웹 펫(site/index.html)과 로컬 샌드박스 체험판(site/pro/index.html) 검증."""
 
     def test_interactive_scripts_have_zero_network_calls(self):
-        for rel in ("assets/web-pet.js", "assets/ro-sandbox.js"):
+        for rel in ("assets/ro-sandbox.js",):
             js = (SITE / rel).read_text(encoding="utf-8")
             for call in ("fetch(", "XMLHttpRequest", "WebSocket", "sendBeacon", "http://", "https://"):
                 self.assertNotIn(call, js, f"{rel} contains network primitive {call!r}")
 
-    def test_web_pet_and_pro_sandbox_markup_present(self):
+    def test_home_hero_has_one_ro_and_pro_sandbox_markup_present(self):
         idx = (SITE / "index.html").read_text(encoding="utf-8")
-        for marker in ('id="web-pet-playground"', 'id="webPetStage"', 'id="webPetWrap"', 'data-wp-mat="clay"',
-                       'data-wp-mat="glass"', 'data-wp-color="orange"', 'data-wp-size="big"', 'data-wp-mood="discovery"',
-                       'id="webPetPauseBtn"'):
-            self.assertIn(marker, idx)
+        # 홈 맨 위에는 ro가 하나만: 돌아다니는 ro-roam이 히어로 상자(.hero-stage)를 집으로 쓴다. 옛 web-pet 놀이터는 없앴다
+        self.assertIn('class="hero-stage"', idx)
+        self.assertIn("ro-roam.js", idx)
+        self.assertNotIn("web-pet", idx)
+        self.assertFalse((SITE / "assets/web-pet.js").exists())
         pro = (SITE / "pro/index.html").read_text(encoding="utf-8")
         for marker in ('id="pro-sandbox"', 'id="sandboxTabSearch"', 'id="sandboxTabTidy"', 'id="sandboxSearchInput"',
                        'id="sandboxResults"', 'id="sandboxPreview"', 'id="sandboxApproveBtn"', 'id="sandboxUndoBtn"',
                        'id="sandboxTidyList"'):
             self.assertIn(marker, pro)
-
-    def test_web_pet_interactions_and_latency_under_100ms(self):
-        import json
-        import shutil
-        import subprocess
-        if not shutil.which("node"):
-            self.skipTest("node 필요")
-        web_pet_js = (SITE / "assets/web-pet.js").read_text(encoding="utf-8")
-        script = r"""
-const assert = require('node:assert/strict');
-function makeEl(id = '') {
-  const attrs = new Map();
-  const classes = new Set();
-  const styles = new Map();
-  const listeners = {};
-  return {
-    id,
-    textContent: '',
-    innerHTML: '',
-    hidden: false,
-    disabled: false,
-    classList: {
-      toggle(c, on) { if (on === undefined) on = !classes.has(c); if (on) classes.add(c); else classes.delete(c); },
-      add(c) { classes.add(c); },
-      remove(c) { classes.delete(c); },
-      contains(c) { return classes.has(c); }
-    },
-    style: {
-      transform: '',
-      setProperty(k, v) { styles.set(k, String(v)); },
-      getPropertyValue(k) { return styles.get(k) || ''; },
-      removeProperty(k) { styles.delete(k); }
-    },
-    setAttribute(k, v) { attrs.set(k, String(v)); },
-    getAttribute(k) { return attrs.has(k) ? attrs.get(k) : null; },
-    removeAttribute(k) { attrs.delete(k); },
-    addEventListener(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); },
-    getBoundingClientRect() { return { left: 100, top: 100, width: 80, height: 32 }; }
-  };
-}
-const nodes = {
-  '#webPetStage': makeEl('webPetStage'),
-  '#webPetWrap': makeEl('webPetWrap'),
-  '#webPetHead': makeEl('webPetHead'),
-  '#webPetBody': makeEl('webPetBody'),
-  '#webPetBase': makeEl('webPetBase'),
-  '#webPetEyes': makeEl('webPetEyes'),
-  '#webPetEyeL': makeEl('webPetEyeL'),
-  '#webPetEyeR': makeEl('webPetEyeR'),
-  '#webPetStatus': makeEl('webPetStatus'),
-  '#webPetPauseBtn': makeEl('webPetPauseBtn'),
-};
-const root = {
-  querySelector(sel) { return nodes[sel] || null; },
-  querySelectorAll() { return []; }
-};
-global.window = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
-global.document = { readyState: 'complete', getElementById: () => root };
-""" + web_pet_js + r"""
-const pet = window.RoWebPet;
-assert.ok(pet, 'RoWebPet initialized');
-const latencies = [];
-pet.setMaterial('glass'); latencies.push(pet.state.lastLatencyMs);
-assert.equal(nodes['#webPetWrap'].getAttribute('data-material'), 'glass');
-pet.setColor('orange'); latencies.push(pet.state.lastLatencyMs);
-assert.equal(nodes['#webPetWrap'].getAttribute('data-color'), 'orange');
-pet.setSize('big'); latencies.push(pet.state.lastLatencyMs);
-assert.equal(nodes['#webPetStage'].style.getPropertyValue('--wp-scale'), '1.24');
-pet.setMood('discovery'); latencies.push(pet.state.lastLatencyMs);
-assert.equal(nodes['#webPetWrap'].getAttribute('data-mood'), 'discovery');
-pet.setMood('idle');
-pet.gazeAt(220, 140); latencies.push(pet.state.lastLatencyMs);
-assert.notEqual(pet.state.gaze.dx, 0);
-pet.press(); latencies.push(pet.state.lastLatencyMs);
-assert.equal(nodes['#webPetWrap'].getAttribute('data-action'), 'press');
-// Rubbing head back and forth triggers pet
-[100, 120, 95, 125, 90].forEach((x, i) => pet.feedStroke(x, i * 80));
-latencies.push(pet.state.lastLatencyMs);
-assert.equal(nodes['#webPetWrap'].getAttribute('data-action'), 'pet');
-pet.togglePause(true);
-assert.equal(pet.state.paused, true);
-console.log(JSON.stringify({ ok: true, maxLatencyMs: Math.max(...latencies), interactions: pet.state.interactions }));
-"""
-        r = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=10)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        out = json.loads(r.stdout.strip())
-        self.assertTrue(out["ok"])
-        self.assertLessEqual(out["maxLatencyMs"], 100.0)
-        self.assertGreaterEqual(out["interactions"], 6)
 
     def test_pro_sandbox_search_and_tidy_apply_undo_under_100ms(self):
         import json
@@ -491,22 +403,7 @@ for page in pages {
         }
         var evalDone = false
         var jsScript = "({ overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth) })"
-        if page == "index.html" && w == 1280 {
-            jsScript = """
-            (() => {
-              document.querySelector('[data-wp-mat="glass"]').click();
-              document.querySelector('[data-wp-color="orange"]').click();
-              document.getElementById('webPetWrap').click();
-              const wrap = document.getElementById('webPetWrap');
-              return {
-                overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
-                mat: wrap.getAttribute('data-material'),
-                color: wrap.getAttribute('data-color'),
-                action: wrap.getAttribute('data-action')
-              };
-            })()
-            """
-        } else if page == "pro/index.html" && w == 1280 {
+        if page == "pro/index.html" && w == 1280 {
             jsScript = """
             (() => {
               const inp = document.getElementById('sandboxSearchInput');
@@ -531,11 +428,6 @@ for page in pages {
             if let dict = res as? [String: Any] {
                 let ov = (dict["overflow"] as? Int) ?? 999
                 if ov > 0 { failures.append("\(page)@\(Int(w))px overflow=\(ov)") }
-                if page == "index.html" && w == 1280 {
-                    if (dict["mat"] as? String) != "glass" || (dict["color"] as? String) != "orange" || (dict["action"] as? String) != "press" {
-                        failures.append("index.html interaction mismatch: \(dict)")
-                    }
-                }
                 if page == "pro/index.html" && w == 1280 {
                     if (dict["hasOcrHit"] as? Bool) != true || (dict["committed"] as? Bool) != true || (dict["undone"] as? Bool) != true {
                         failures.append("pro/index.html sandbox mismatch: \(dict)")
@@ -682,14 +574,9 @@ class SiteBrowserTest(unittest.TestCase):
         self.assertEqual(page.get_attribute("[data-support]", "href"), "mailto:help@example.test")
         self.assertTrue(page.is_hidden("[data-portal]"))  # 포털 주소가 없으면 링크를 숨긴다
 
-    def test_interactive_web_pet_and_sandbox_in_browser(self):
+    def test_home_hero_and_sandbox_in_browser(self):
         page, reqs = self.open("", 1280)
-        page.click('[data-wp-mat="glass"]')
-        self.assertEqual(page.get_attribute("#webPetWrap", "data-material"), "glass")
-        page.click('[data-wp-color="orange"]')
-        self.assertEqual(page.get_attribute("#webPetWrap", "data-color"), "orange")
-        page.click("#webPetWrap")
-        self.assertEqual(page.get_attribute("#webPetWrap", "data-action"), "press")
+        self.assertEqual(page.locator(".hero-stage").count(), 1)
         self.assertTrue(all(u.startswith(self.base) for u in reqs))
 
         page2, reqs2 = self.open("pro/", 1280)
