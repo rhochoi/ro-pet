@@ -627,6 +627,42 @@ class SiteBrowserTest(unittest.TestCase):
         self.assertEqual(calm.evaluate("RO_ROAM.state().perch"), "home")    # 동작 줄이기: 히어로 카드에서 나가지 않는다
         self.assertTrue(calm.is_hidden(".rr-toggle"))
 
+    def test_ro_can_be_petted_and_carried_home(self):
+        page, _ = self.open("", 1280)
+        page.wait_for_selector("#rr-root .rr-body")
+        page.wait_for_timeout(800)
+        x, y, w, h = page.eval_on_selector(".rr-body", "e => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }")
+        cx, cy = x + w / 2, y + h * 0.35
+        page.mouse.move(cx - 60, cy)
+        for i in range(14):                                  # 가만히 얹은 손은 쓰다듬기가 아니다. 왔다 갔다 해야 한다
+            page.mouse.move(cx + 60 if i % 2 == 0 else cx - 60, cy, steps=6)
+        page.wait_for_function("RO_ROAM.state().petting", timeout=3000)
+        self.assertEqual(page.evaluate("RO_ROAM.state().feeling"), "relief")
+        page.mouse.move(5, 5)
+        calm = self.browser.new_context(viewport={"width": 1280, "height": 800})
+        self.addCleanup(calm.close)
+        still = calm.new_page()
+        still.goto(self.base)
+        still.wait_for_selector("#rr-root .rr-body")
+        still.wait_for_timeout(800)
+        sx, sy, sw, sh = still.eval_on_selector(".rr-body", "e => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }")
+        still.mouse.move(sx + sw / 2, sy + sh * 0.35)
+        still.wait_for_timeout(1200)
+        self.assertFalse(still.evaluate("RO_ROAM.state().petting"))
+        still.mouse.move(5, 5)                                # 손을 치우면 7초쯤 뒤 박스를 나선다
+        # 손에 들려 박스에 놓이면 집으로 돌아가 커진다
+        still.wait_for_function("RO_ROAM.state().away", timeout=12000)
+        still.wait_for_function("RO_ROAM.state().st === 'idle'")
+        bx, by = still.eval_on_selector(".rr-body", "e => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }")
+        gx, gy = still.eval_on_selector(".hero-stage", "e => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }")
+        still.mouse.move(bx, by)
+        still.mouse.down()
+        still.mouse.move(bx + 8, by + 8, steps=3)
+        still.mouse.move(gx, gy, steps=25)
+        still.mouse.up()
+        still.wait_for_function("RO_ROAM.state().perch === 'home' && RO_ROAM.state().st === 'idle'", timeout=5000)
+        self.assertGreater(still.evaluate("RO_ROAM.state().s"), 2)
+
     def test_ro_fits_small_screens_on_every_page(self):
         for path in ("", "pro/", "privacy/"):
             page, _ = self.open(path, 375)

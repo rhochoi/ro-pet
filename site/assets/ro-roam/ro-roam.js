@@ -101,14 +101,17 @@
   let st = "idle";                      // idle | walk | crouch | hop | fall | drag
   let perch = { kind: "floor" }, tt = 0.85;
   let x = 0, y = 0, s = 1, vy = 0;
-  let timer = 2.5, walkTo = 0, walkSpeed = 70, dir = 1, phase = 0, sq = 0, hp = null;
+  let timer = 2.5, walkTo = 0, walkSpeed = 70, dir = 1, phase = 0, sq = 0, sqv = 0, sqT = 0, hp = null;
+  let wv = 0, px = 0, py = 0, vxs = 0, vys = 0, tilt = 0, dragTX = 0, dragTY = 0, plx = null, ply = null;
+  const spr = { hx: [0, 0], hy: [0, 0], bx: [0, 0], by: [0, 0], sx: [0, 0] };   // follow-through: [position, velocity]
   let ambient = "calm", temp = null, tempUntil = 0;
   let lookX = 0.35, lookY = 0, lookTX = 0.35, lookTY = 0, lookTimer = 2;
   let blink = 0, blinkTimer = 3;
   let asleep = false, lastActive = 0, open = false, hovering = false;
   let ptr = { x: -999, y: -999, t: -99 };
   let now = 0, last = 0, raf = 0, murmurTill = 0, lastMurmur = -99;
-  let drag = null, homeEl = null, stage = null, away = false, pendingOpen = false;
+  let petMeter = 0, petting = false, petHold = false, petT = 0, petStep = 0, holdT = 0, lastSX = null, petEnd = 0;
+  let stageHover = false, overStage = false, drag = null, homeEl = null, stage = null, away = false, pendingOpen = false;
   const cur = { ...base };
   let moving = false;
 
@@ -128,7 +131,7 @@
   function candidates(skip) {
     const out = [];
     doc.querySelectorAll(PERCH_SEL).forEach((el) => {
-      if (skip && perch.el === el) return;
+      if ((skip && perch.el === el) || el === stage) return;
       const r = el.getBoundingClientRect();
       if (r.width < 90 || r.top <= H + 22 || r.top >= vh - 18 || r.left > vw - 60 || r.right < 60) return;
       out.push({ p: { kind: "el", el }, r });
@@ -136,26 +139,32 @@
     return out;
   }
   const pickT = (el) => (el.matches("h2") ? rand(0.04, 0.96) : el.matches(".card, .price, .table-card") ? rand(0.55, 0.92) : rand(0.12, 0.88));
+  const inStage = (cx, cy) => { if (!stage) return false; const r = stage.getBoundingClientRect(); return cx > r.left && cx < r.right && cy > r.top && cy < r.bottom; };
   const floorT = () => clamp(x / vw, 0.04, 0.96);
+
+  /* ---------- petting ---------- */
+  function startPet(hold) { petting = true; petHold = !!hold; petT = 0; petStep = 0; wake(false); kick(); }
+  function endPet() { petting = false; petHold = false; petMeter = 0; emote("relief", 1300); }
+  function petFor(ms) { startPet(true); petEnd = now + ms / 1000; }
 
   /* ---------- feelings ---------- */
   function emote(name, ms) { temp = name; tempUntil = now + ms / 1000; kick(); }
-  const feeling = () => (open && !temp ? (input.value ? "focus" : ambient) : temp && now < tempUntil ? temp : asleep ? "sleep" : ambient);
+  const feeling = () => (petting ? "relief" : open && !temp ? (input.value ? "focus" : ambient) : temp && now < tempUntil ? temp : asleep ? "sleep" : ambient);
 
   /* ---------- movement ---------- */
   function hop(dest, destT, then, quiet) {
     if (reduced) { const f = surf(dest, destT); x = f.x; y = f.y; s = f.s; hp = { then }; land(dest, destT, false); sq = 0; kick(); return; }
-    st = "crouch"; timer = quiet ? 0.05 : 0.15; hp = { dest, t: destT, then }; kick();
+    st = "crouch"; wv = 0; timer = quiet ? 0.05 : 0.18; hp = { dest, t: destT, then }; kick();
   }
   function startHop() {
     const f = surf(hp.dest, hp.t);
     const dist = Math.hypot(f.x - x, f.y - y);
-    hp.from = { x, y, s }; hp.t0 = now; hp.dur = clamp(0.38 + dist / 1500, 0.4, 0.95); hp.arc = clamp(28 + dist * 0.14, 28, 130);
+    hp.from = { x, y, s }; hp.t0 = now; hp.dur = clamp(0.46 + dist / 1250, 0.5, 1.1); hp.arc = clamp(30 + dist * 0.15, 30, 140);
     dir = f.x >= x ? 1 : -1; st = "hop";
     emote("find", hp.dur * 1000 + 150);
   }
   function land(dest, destT, hard) {
-    perch = dest; tt = destT; st = "idle"; timer = rand(2.2, 5); sq = hard ? 1 : 0.7; vy = 0;
+    perch = dest; tt = destT; st = "idle"; timer = rand(2.2, 5); sq = hard ? 1 : 0.7; sqv = 0; vy = 0; wv = 0;
     if (perch.kind === "home") { away = false; stage && stage.classList.remove("is-away"); emote("relief", 1600); }
     const cb = hp && hp.then; hp = null; if (cb) cb();
     if (pendingOpen && perch.kind !== "home") { pendingOpen = false; openPanel(); }
@@ -205,22 +214,26 @@
 
   /* ---------- per frame ---------- */
   function update(dt) {
-    sq += (0 - sq) * (1 - Math.exp(-dt * 13));
+    if (st !== "hop") sqT = st === "crouch" ? 0.85 : petting && !reduced ? 0.12 + 0.1 * Math.sin(now * 13) : 0;
+    for (let n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n; n--;) { sqv += ((sqT - sq) * 300 - sqv * 17) * h; sq += sqv * h; }   // a little overshoot when it lands
     if (st === "idle" || st === "walk") {
       if (st === "walk") {
-        const f0 = surf(perch, tt), step = (walkSpeed * dt) / Math.max(f0.w, 1);
-        dir = walkTo >= tt ? 1 : -1;
-        phase += walkSpeed * dt * 0.11;
-        if (Math.abs(walkTo - tt) <= step) { tt = walkTo; st = "idle"; timer = rand(2, 5); }
-        else tt += dir * step;
-      }
+        // speed ramps up and eases off before the stop, so it never starts or halts on a dime
+        const w0 = Math.max(surf(perch, tt).w, 1), remain = (walkTo - tt) * w0;
+        dir = remain >= 0 ? 1 : -1;
+        const want = dir * Math.min(walkSpeed, Math.sqrt(2 * 240 * Math.abs(remain)) + 6);
+        wv += clamp(want - wv, -480 * dt, 480 * dt);
+        phase += Math.abs(wv) * dt * 0.105;
+        tt += (wv * dt) / w0;
+        if (Math.abs(walkTo - tt) * w0 < 1.5 && Math.abs(wv) < 16) { tt = walkTo; wv = 0; st = "idle"; timer = rand(2, 5); }
+      } else wv = 0;
       const f = surf(perch, tt);
       if (!f.ok) { fallToFloor(); }
       else {
         x = f.x; y = f.y; s += (f.s - s) * (1 - Math.exp(-dt * 12)); if (Math.abs(s - f.s) < 0.002) s = f.s;
         if (st === "idle") {
           timer -= dt;
-          if (hovering || open) timer = Math.max(timer, 2);
+          if (hovering || open || (perch.kind === "home" && stageHover)) timer = Math.max(timer, 2);   // while you look at it at home, it stays
           if (timer <= 0) { if (perch.kind === "home" && !away && !rest && !reduced) leaveHome(); else think(); }
         }
       }
@@ -232,9 +245,9 @@
     if (st === "hop") {
       const u = clamp((now - hp.t0) / hp.dur, 0, 1), f = surf(hp.dest, hp.t);
       if (!f.ok && hp.dest.kind === "el") { hp.dest = { kind: "floor" }; hp.t = clamp(x / vw, 0.05, 0.95); }
-      const e = ease(u);
-      x = lerp(hp.from.x, f.x, e); y = lerp(hp.from.y, f.y, e) - hp.arc * 4 * u * (1 - u); s = lerp(hp.from.s, f.s, e);
-      sq = Math.min(sq, -0.5 * Math.sin(Math.PI * u));
+      const e = ease(u), ex = e * 0.6 + u * 0.4;          // sideways keeps most of its speed; height and size ease
+      x = lerp(hp.from.x, f.x, ex); y = lerp(hp.from.y, f.y, e) - hp.arc * 4 * u * (1 - u); s = lerp(hp.from.s, f.s, e);
+      sqT = -0.5 * Math.sin(Math.PI * u);
       if (u >= 1) land(hp.dest, hp.t, false);
     }
     if (st === "fall") {
@@ -246,8 +259,31 @@
         if (y >= f.y) { y = f.y; land(perch, tt, true); const k = perch.kind; if (k !== "home") murmurSay(k === "floor" ? "thanks." : "good view."); }
       }
     }
-    if (st === "drag") { s += (1 - s) * (1 - Math.exp(-dt * 12)); }
+    if (st === "drag") {
+      s += ((overStage ? Math.min(2.6, surf({ kind: "home", el: homeEl }, 0.5).s) : 1) - s) * (1 - Math.exp(-dt * 9));   // over its home it starts to grow
+      const kd = 1 - Math.exp(-dt * 22);                  // it hangs from the pointer on a short elastic, not glued to it
+      x += (dragTX - x) * kd; y += (dragTY - y) * kd;
+    }
+    // how fast ro itself is moving (not the page under it): drives lean and follow-through
+    if (st === "walk" || st === "hop" || st === "fall" || st === "drag") {
+      const kv = 1 - Math.exp(-dt * 18);
+      vxs += (clamp((x - px) / Math.max(dt, 0.001), -1400, 1400) - vxs) * kv;
+      vys += (clamp((y - py) / Math.max(dt, 0.001), -1800, 1800) - vys) * kv;
+    } else { const kv = 1 - Math.exp(-dt * 10); vxs -= vxs * kv; vys -= vys * kv; }
+    px = x; py = y;
+    const tiltT = petting ? clamp((ptr.x - x) / 9, -7, 7) : clamp(vxs / 38, -13, 13) * (st === "drag" ? -1 : 1);
+    tilt += (tiltT - tilt) * (1 - Math.exp(-dt * 11));
 
+    // petting: moving the pointer back and forth over ro (or holding a finger on it) is a stroke
+    petMeter = Math.max(0, petMeter - dt * 170);
+    if (!petting && petMeter > 150 && st === "idle" && !drag) startPet();
+    if (petting) {
+      petT += dt;
+      if (petHold ? now > petEnd && !drag : petMeter < 25) endPet();
+      else if (petStep < 1 && petT > 0.25) { petStep = 1; lastMurmur = -99; murmurSay("mm."); }
+      else if (petStep < 2 && petT > 3.5) { petStep = 2; lastMurmur = -99; murmurSay("ro.", 2200); }
+      else if (petStep < 3 && petT > 8) { petStep = 3; lastMurmur = -99; murmurSay("that\u2019s nice.", 2400); }
+    }
     // eyes
     const centered = st === "walk" || st === "hop";
     if (centered) { lookTX = dir * 0.9; lookTY = st === "hop" ? -0.3 : 0; }
@@ -273,11 +309,16 @@
     for (const key in tgt) { const d = tgt[key] - cur[key]; if (Math.abs(d) > 0.01) { cur[key] += reduced ? d : d * kk; moving = true; } else cur[key] = tgt[key]; }
     // body language
     const t = now, walking = st === "walk", dragging = st === "drag";
-    const bob = (o, a) => (walking ? -Math.abs(Math.sin(phase - o)) * a : 0);
+    const wk = walking ? clamp(Math.abs(wv) / 55, 0, 1) : 0;           // steps grow with speed
+    const bob = (o, a) => (walking ? -Math.abs(Math.sin(phase - o)) * a * wk : 0);
+    const tg = (kx, ky, g, gy) => { for (let n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n; n--;) {
+      spr[kx][1] += ((clamp(-vxs * g, -9, 9) - spr[kx][0]) * 230 - spr[kx][1] * 15) * h; spr[kx][0] += spr[kx][1] * h;
+      if (ky) { spr[ky][1] += ((clamp(-vys * gy, -7, 7) - spr[ky][0]) * 230 - spr[ky][1] * 15) * h; spr[ky][0] += spr[ky][1] * h; } } };
+    if (dt > 0) { tg("hx", "hy", 0.0155, 0.007); tg("bx", "by", 0.009, 0.004); tg("sx", null, 0.0035, 0); }
     const breath = Math.sin(t * (asleep ? 1.1 : 1.7)) * (asleep ? 1.6 : 0.7);
-    let hdx = walking ? dir * 3 : 0, bdx = walking ? dir * 1.5 : 0, sdx = 0;
-    let hdy = bob(0, 4) + (reduced ? 0 : breath), bdy = bob(0.55, 3) + (reduced ? 0 : breath * 0.5), sdy = bob(1.1, 1.6);
-    if (dragging) { hdx = Math.sin(t * 8 + 2) * 4; bdx = Math.sin(t * 8 + 1) * 6; sdx = Math.sin(t * 8) * 4; hdy = Math.sin(t * 11) * 1.5; }
+    let hdx = dir * 1.6 * wk + spr.hx[0], bdx = dir * 0.8 * wk + spr.bx[0], sdx = spr.sx[0];
+    let hdy = bob(0, 4) + (reduced ? 0 : breath) + spr.hy[0], bdy = bob(0.55, 3) + (reduced ? 0 : breath * 0.5) + spr.by[0], sdy = bob(1.1, 1.6);
+    if (dragging) { hdx += Math.sin(t * 7 + 2) * 1.6; bdx += Math.sin(t * 7 + 1) * 2.2; sdx += Math.sin(t * 7) * 1.6; }
     gHead.setAttribute("transform", `translate(${hdx.toFixed(2)} ${hdy.toFixed(2)})`);
     gBody.setAttribute("transform", `translate(${bdx.toFixed(2)} ${bdy.toFixed(2)})`);
     gBase.setAttribute("transform", `translate(${sdx.toFixed(2)} ${sdy.toFixed(2)})`);
@@ -296,7 +337,7 @@
     // placement
     const ox = PIVOT_X * W, oy = PIVOT_Y * H;
     ro.style.transform = `translate(${(x - ox).toFixed(1)}px, ${(y - oy).toFixed(1)}px) scale(${s.toFixed(3)})`;
-    fig.style.transform = `scale(${(1 + 0.1 * sq).toFixed(3)}, ${(1 - 0.12 * sq).toFixed(3)})`;
+    fig.style.transform = `skewX(${(-tilt).toFixed(2)}deg) scale(${(1 + 0.1 * sq).toFixed(3)}, ${(1 - 0.12 * sq).toFixed(3)})`;
     ro.classList.toggle("is-drag", dragging);
     // bubble and murmur follow ro
     const roH = H * s * PIVOT_Y;
@@ -305,9 +346,11 @@
       let top = y - roH - bh - 12, side = "above";
       if (top < 8) { top = y + 14; side = "below"; if (top + bh > vh - 8) top = Math.max(8, vh - 8 - bh); }
       const left = clamp(x - bw / 2, 8, Math.max(8, vw - bw - 8));
-      panel.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px)`;
+      if (plx === null || reduced) { plx = left; ply = top; }
+      else { const kp = 1 - Math.exp(-dt * 16); plx += (left - plx) * kp; ply += (top - ply) * kp; }   // the bubble glides after ro
+      panel.style.transform = `translate(${plx.toFixed(1)}px, ${ply.toFixed(1)}px)`;
       panel.dataset.side = side;
-      panel.style.setProperty("--tail", clamp(x - left, 24, bw - 24).toFixed(1) + "px");
+      panel.style.setProperty("--tail", clamp(x - plx, 24, bw - 24).toFixed(1) + "px");
     }
     const mon = (asleep && !open) || now < murmurTill;
     murmur.classList.toggle("is-on", mon && !open);
@@ -323,7 +366,7 @@
     measure();
     if (!asleep && !open && !rest && !reduced && st === "idle" && now - lastActive > 50) { asleep = true; murmur.textContent = "z z z"; }
     update(dt); render(dt);
-    const settled = (rest || reduced) && st === "idle" && !moving && !open && Math.abs(sq) < 0.01 && now >= murmurTill && !hovering && now >= tempUntil;
+    const settled = (rest || reduced) && st === "idle" && !moving && !open && Math.abs(sq) < 0.01 && Math.abs(sqv) < 0.05 && Math.abs(tilt) < 0.05 && now >= murmurTill && !hovering && now >= tempUntil;
     if (!doc.hidden && !settled) raf = requestAnimationFrame(frame);
   }
   function kick() { if (!raf && !doc.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
@@ -342,6 +385,8 @@
   const GITHUB = "https://github.com/rhochoi/ro-pet/releases";
   const L = (label, href) => ({ label, href });
   const INTENTS = [
+    { re: /can i (pet|pat|stroke|hug|cuddle)|\b(pet|pat|stroke|cuddle|hug|scratch) (you|ro|me)\b/, act: "pet", x: "relief", say: "Yes. Gently. Move your cursor back and forth over me, or hold a finger on me.", chips: ["What are you?", "Is it free?"] },
+    { re: /what can i do|how do i (use|play)|interact|play with (you|ro)|\btricks?\b/, x: "find", say: "Poke me to ask a question. Pick me up and put me down somewhere nice. Pet me, if you're gentle. Or just read; I'll keep walking.", chips: ["Can I pet you?", "What are you?"] },
     { re: /\/file|find (a |my )?files?|\bsearch|⌥|option ?r\b|alt ?r\b/, x: "find", at: { pro: "#does" }, go: L("How file search works", "pro/#does"),
       say: "That's a pro thing. On your Mac, press ⌥R and type what you remember, like “the contract PDF from last month”, and I look on this Mac only. The same shortcut wakes me up here.", chips: ["How much is pro?", "Is my data safe?"] },
     { re: /handoff|hand.?off|switch(ing)? (ai|tools?)|tokens/, x: "focus", at: { pro: "#does" }, go: L("See pro", "pro/#does"),
@@ -383,7 +428,7 @@
     { re: /[ㄱ-힝]/, x: "relief", say: "안녕하세요. 이 사이트에서는 영어로만 말해요. 앱 안에서는 한국어로도 이야기할 수 있어요.", chips: ["What are you?"] },
   ];
   const FALLBACK = { x: "sulk", say: "I only know what's written on this site, and I'd rather not guess. Try asking about the price, privacy, or the download.", chips: ["Is it free?", "Is my data safe?", "Where do I download?"] };
-  const FIRST = { say: "Ask me about this site. I only know what's written here.", chips: ["What are you?", "Is it free?", "Is my data safe?", "Where do I download?"] };
+  const FIRST = { say: "Ask me about this site. I only know what's written here.", chips: ["What are you?", "Is it free?", "Is my data safe?", "Can I pet you?"] };
 
   let typing = 0;
   function say(res) {
@@ -415,6 +460,7 @@
     if (it.act === "home") { if (homeEl) { closePanelSoon(); goHome(); } }
     if (it.act === "hop") { if (!reduced && st === "idle") { hop(perch, tt, null, true); } }
     if (it.act === "close") closePanelSoon(1100);
+    if (it.act === "pet") petFor(3000);
   }
 
   function showEl(sel) {
@@ -436,7 +482,7 @@
   function openPanel() {
     if (open) { input.focus(); return; }
     if (s > 1.6) { pendingOpen = true; leaveHome(); return; }      // from the big hero card, step out first
-    open = true; panel.hidden = false; body.setAttribute("aria-expanded", "true");
+    open = true; plx = null; panel.hidden = false; body.setAttribute("aria-expanded", "true");
     wake(false); clearTimeout(closeT);
     if (!sayEl.textContent && !liveEl.textContent) say(FIRST);
     emote("find", 900);
@@ -494,22 +540,34 @@
     if (e.button) return;
     drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false };
     body.setPointerCapture(e.pointerId); wake(false);
+    if (e.pointerType === "touch") { clearTimeout(holdT); holdT = setTimeout(() => { if (drag && !drag.moved) { drag.pet = true; startPet(true); petEnd = 9e9; } }, 450); }
   });
   body.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) {
-      drag.moved = true; if (open) closePanel(); st = "drag"; hp = null; pendingOpen = false;
+      drag.moved = true; clearTimeout(holdT); if (petting) endPet(); if (open) closePanel(); st = "drag"; hp = null; pendingOpen = false;
       if (perch.kind === "home") { away = true; stage && stage.classList.add("is-away"); }
+      dragTX = e.clientX; dragTY = e.clientY + H * s * 0.5; wv = 0;
       emote("uneasy", 99999); murmurSay("oh.");
     }
-    if (drag.moved) { x = e.clientX; y = e.clientY + H * s * 0.5; kick(); }
+    if (drag.moved) {
+      dragTX = e.clientX; dragTY = e.clientY + H * s * 0.5;
+      const over = !!homeEl && inStage(e.clientX, e.clientY);
+      if (over !== overStage) { overStage = over; stage.classList.toggle("is-drop", over); if (over) emote("find", 99999); else emote("uneasy", 99999); }
+      kick();
+    }
   });
   const endDrag = (e) => {
     if (!drag || e.pointerId !== drag.id) return;
-    const d = drag; drag = null;
+    const d = drag; drag = null; clearTimeout(holdT);
+    if (d.pet) { endPet(); return; }                     // a held finger pets, it does not open the bubble
     try { body.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
     if (d.moved) {
       temp = null; tempUntil = 0;
+      const toHome = !!homeEl && inStage(e.clientX, e.clientY);
+      if (stage) stage.classList.remove("is-drop");
+      overStage = false;
+      if (toHome) { hop({ kind: "home", el: homeEl }, 0.5, () => { timer = 25; murmurSay("home."); }, true); return; }
       const c = candidates(false).filter((c) => x > c.r.left + 10 && x < c.r.right - 10 && c.r.top >= y - 10 && c.r.top - y < 700).sort((a, b) => a.r.top - b.r.top)[0];
       if (c) { perch = c.p; tt = clamp((x - c.r.left) / c.r.width, 0.04, 0.96); } else { perch = { kind: "floor" }; tt = clamp(x / vw, 0.04, 0.96); }
       st = "fall"; vy = 0; sq = -0.4; kick();
@@ -518,6 +576,12 @@
   body.addEventListener("pointerup", endDrag);
   body.addEventListener("pointercancel", endDrag);
   body.addEventListener("click", (e) => { if (e.detail === 0) toggle(); });          // keyboard: Enter / Space
+  body.addEventListener("pointermove", (e) => {
+    if (drag || e.pointerType === "touch" || e.buttons) { lastSX = null; return; }
+    if (lastSX !== null) petMeter = Math.min(420, petMeter + Math.abs(e.clientX - lastSX) + Math.abs(e.movementY || 0) * 0.5);
+    lastSX = e.clientX; kick();
+  });
+  body.addEventListener("pointerleave", () => { lastSX = null; });
   body.addEventListener("pointerenter", (e) => {
     if (e.pointerType === "touch" || drag) return;
     hovering = true; wake(false);
@@ -538,6 +602,7 @@
     const t = performance.now(), v = Math.abs(scrollY - sy) / Math.max(1, t - st0) * 1000;
     sy = scrollY; st0 = t; lastActive = now;
     if (asleep) wake(false);
+    if ((st === "idle" || st === "walk") && !drag) { const f = surf(perch, tt); if (f.ok) { x = f.x; y = f.y; px = x; py = y; render(0); } }   // ride the page without a frame of lag
     if (v > 3200 && !reduced && !drag && st === "idle" && now - lastMurmur > 12) { emote("uneasy", 800); murmurSay("whoa."); }
     kick();
   }, { passive: true });
@@ -558,11 +623,14 @@
       const call = doc.createElement("button"); call.type = "button"; call.textContent = "Call ro back";
       call.addEventListener("click", () => { goHome(); });
       away$.append(call); stage.append(away$);
+      stage.addEventListener("pointerenter", () => { stageHover = true; });
+      stage.addEventListener("pointerleave", () => { stageHover = false; });
     }
     const foot = $("footer.foot nav");
     if (foot) { footBtn.textContent = rest ? "Wake ro" : "Let ro rest"; footBtn.hidden = reduced; footBtn.addEventListener("click", () => setRest(!rest)); foot.append(footBtn); }
     restBtn.textContent = rest ? "Wake ro" : "Let ro rest";
     doc.body.append(root$);
+    measure();
     root.classList.add("rr-live");
     lastActive = now = performance.now() / 1000;
 
@@ -571,7 +639,7 @@
     if (PAGE === "home" && homeEl && !fromLink) {
       perch = { kind: "home", el: homeEl }; tt = 0.5;
       const f = surf(perch, tt); x = f.x; y = f.y; s = f.s; away = false;
-      if (rest || reduced) { timer = 9e9; } else timer = 2.6;
+      if (rest || reduced) { timer = 9e9; } else timer = 7;       // long enough to see it big before it heads out
     } else {
       const to = clamp(sv.x ?? (rest ? (vw - 50) / vw : 0.82), 0.05, 0.95);
       perch = { kind: "floor" }; tt = to; if (rest || reduced) { tt = (vw - 50) / vw; }
@@ -580,12 +648,13 @@
       if (!rest && !reduced) { tt = fromLink ? -70 / vw : (vw + 70) / vw; walkTo = to; walkSpeed = 110; dir = fromLink ? 1 : -1; st = "walk"; }
     }
     restBtn.textContent = rest ? "Wake ro" : "Let ro rest";
+    render(0);                       // draw ro where it stands right away, even if the first frame is late
     kick();
   }
 
   window.RO_ROAM = {
-    state: () => ({ st, perch: perch.kind, x: Math.round(x), y: Math.round(y), s: +s.toFixed(2), rest, open, away, feeling: feeling() }),
-    open: openPanel, close: closePanel, rest: setRest, ask: (q) => { openPanel(); respond(q); },
+    state: () => ({ st, perch: perch.kind, x: Math.round(x), y: Math.round(y), s: +s.toFixed(2), rest, open, away, petting, feeling: feeling() }),
+    open: openPanel, close: closePanel, pet: () => petFor(3000), rest: setRest, ask: (q) => { openPanel(); respond(q); },
   };
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
 })();

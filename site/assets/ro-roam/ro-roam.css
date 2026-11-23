@@ -61,6 +61,8 @@
 /* the hero card is ro's home. While it is out, the card says so. */
 .hero-stage { position: relative; }
 .rr-live .hero-stage .hero-art { visibility: hidden; }
+.hero-stage { transition: box-shadow .18s; }
+.hero-stage.is-drop { box-shadow: inset 0 0 0 2px var(--ink); }
 .rr-away { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; }
 .rr-live .hero-stage.is-away .rr-away { display: flex; }
 .rr-away strong { font: 750 22px/1.2 var(--display); letter-spacing: -.02em; }
@@ -79,3 +81,4 @@
 @media print { #rr-root { display: none; } }
 @media (prefers-reduced-motion: reduce) { .rr-murmur { transition: none; } }
 .rr-toggle[hidden] { display: none; }
+.hero-stage.is-drop .rr-away { opacity: 0; }
