@@ -115,8 +115,10 @@
   const cur = { ...base };
   let moving = false;
 
+  let drawnW = 0;                        // the width ro is actually laid out at (W × s), see render()
   const measure = () => {
     vw = root.clientWidth; vh = innerHeight;
+    ro.style.width = ""; drawnW = 0;     // read the base size from CSS, not the enlarged one
     W = ro.offsetWidth || 64; H = ro.offsetHeight || 56;
   };
 
@@ -335,8 +337,12 @@
     gRect.setAttribute("opacity", cur.ra.toFixed(2)); gArc.setAttribute("opacity", cur.aa.toFixed(2)); gSulk.setAttribute("opacity", cur.sa.toFixed(2));
     gEyes.setAttribute("transform", `translate(${(lookX * 5.5).toFixed(2)} ${(lookY * 3).toFixed(2)})`);
     // placement
-    const ox = PIVOT_X * W, oy = PIVOT_Y * H;
-    ro.style.transform = `translate(${(x - ox).toFixed(1)}px, ${(y - oy).toFixed(1)}px) scale(${s.toFixed(3)})`;
+    // Grow by laying ro out bigger, not with scale(): a scaled layer is a stretched 64px picture and looks blurry
+    // in the hero box (s≈6). At its real size the SVG is drawn sharp.
+    const dw = Math.round(W * s * 2) / 2;
+    if (dw !== drawnW) { ro.style.width = dw + "px"; drawnW = dw; }
+    const k = dw / W, ox = PIVOT_X * W * k, oy = PIVOT_Y * H * k;
+    ro.style.transform = `translate(${(x - ox).toFixed(1)}px, ${(y - oy).toFixed(1)}px)`;
     fig.style.transform = `skewX(${(-tilt).toFixed(2)}deg) scale(${(1 + 0.1 * sq).toFixed(3)}, ${(1 - 0.12 * sq).toFixed(3)})`;
     ro.classList.toggle("is-drag", dragging);
     // bubble and murmur follow ro
