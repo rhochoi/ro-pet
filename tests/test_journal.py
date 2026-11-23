@@ -118,8 +118,8 @@ class JournalTest(unittest.TestCase):
         self.w(self.dl / "a.txt")
         with self.batch() as b:
             b.move(self.dl / "a.txt", self.docs / "a.txt")
-        (self.docs / "a.txt").unlink()
-        self.w(self.docs / "a.txt", "다른 파일")          # 같은 이름, 다른 inode
+        self.w(self.docs / "a.txt.new", "다른 파일")      # 같은 이름, 다른 inode(옛 파일이 있는 동안 만들어야
+        os.replace(self.docs / "a.txt.new", self.docs / "a.txt")  # Linux가 지운 inode 번호를 다시 쓰지 않는다)
         _, restored, skipped = journal.undo(home=self.ro)
         self.assertEqual(restored, 0)
         self.assertIn("바뀜", skipped[0][1])

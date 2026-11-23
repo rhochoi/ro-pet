@@ -1,5 +1,6 @@
 """install.sh: gh·uv·curl·pipx를 가짜 명령으로 바꿔 흐름만 검증한다(네트워크·실제 설치 없음)."""
 import re
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -139,6 +140,8 @@ class InstallScriptTest(unittest.TestCase):
         self.assertIn("ro doctor", log)
 
     def test_private_repo_without_gh_stops(self):
+        if shutil.which("gh", path="/usr/bin:/bin"):
+            self.skipTest("시스템에 gh가 있어 'gh 없음'을 재현할 수 없다(GitHub 실행기)")
         self.stub("uv", UV)
         r, log = self.run_script()
         self.assertNotEqual(r.returncode, 0)
