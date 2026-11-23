@@ -78,7 +78,7 @@ class SiteStaticTest(unittest.TestCase):
         for page in ("terms/index.html", "refund/index.html"):
             html = (SITE / page).read_text(encoding="utf-8")
             self.assertIn("14 days", html)
-            self.assertIn("keeps working until", html)  # 오프라인 키라 환불·해지 뒤에도 기한까지 유효
+            self.assertIn("keeps working until", html)  # 확인된 결제는 환불·해지 뒤에도 기한까지 유효
 
     def test_unfilled_checkout_keeps_buttons_off(self):
         cfg = (SITE / "site-config.js").read_text(encoding="utf-8")
@@ -164,7 +164,7 @@ class SiteTruthTest(unittest.TestCase):
         self.assertNotIn("@media (prefers-color-scheme: dark) { .rh-pet {", css)
 
     def test_sentences_read_whole_without_the_portal_link(self):
-        for page in ("site/license/index.html", "site/refund/index.html"):
+        for page in ("site/refund/index.html",):
             html = self.read(page)
             self.assertNotRegex(html, r"the <a data-portal|Use the <a data-portal")
             self.assertRegex(html, r"<p><a data-portal hidden>[^<]+</a></p>")  # 링크는 따로 한 줄
@@ -176,11 +176,12 @@ class SiteTruthTest(unittest.TestCase):
             self.assertIn("installs it automatically", privacy)
             self.assertNotIn("if you agree", privacy)
 
-    def test_license_page_matches_the_mail_subject(self):
-        worker = self.read("issuer/worker.js")
-        subject = re.search(r'subject: "([^"]+)"', worker).group(1)
-        self.assertIn('"License key" in the subject', self.read("site/license/index.html"))
-        self.assertIn("License key", subject)
+    def test_no_license_key_wording_for_visitors(self):
+        # 2026-11-23: 라이선스 키는 사용자에게서 없앴다. 결제하면 앱이 설치 토큰으로 스스로 pro가 된다
+        for page in PAGES:
+            html = (SITE / page).read_text(encoding="utf-8")
+            self.assertNotRegex(html, r"RO1\.|Save key|[Pp]aste the key|License…|License help", page)
+        self.assertIn("../pro/#help", (SITE / "license/index.html").read_text(encoding="utf-8"))  # 옛 링크는 /pro로
 
     def test_demo_uses_the_apps_own_words(self):
         demo = self.read("site/demo-src/RoHero.tsx")
@@ -567,8 +568,8 @@ class SiteBrowserTest(unittest.TestCase):
         self.assertIsNone(page.get_attribute(y, "aria-disabled"))
         self.assertEqual(page.text_content(y), "Get pro — yearly")
         self.assertIsNone(page.get_attribute('[data-checkout="monthly"]', "href"))  # https가 아니면 켜지지 않는다
-        page, _ = self.open("license/", 1280)
-        page.evaluate("() => { RO_SITE.portal = ''; RO_SITE.support = 'help@example.test'; document.querySelectorAll('[data-portal]').forEach(e => e.hidden = true); RO_SITE_APPLY(); }")
+        page, _ = self.open("thanks/", 1280)
+        page.evaluate("() => { RO_SITE.support = 'help@example.test'; RO_SITE_APPLY(); }")
         self.assertEqual(page.get_attribute("[data-support]", "href"), "mailto:help@example.test")
         self.assertTrue(page.is_hidden("[data-portal]"))  # 포털 주소가 없으면 링크를 숨긴다
 

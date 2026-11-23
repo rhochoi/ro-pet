@@ -16,7 +16,7 @@
 <body>
 <header class="wrap top">
   <a class="brand" href="../"><svg class="ro-mark ro-mark--brand" viewBox="0 0 145.67 139.33" aria-hidden="true"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="56" y="14.2" width="16" height="22.2" rx="8"/><rect class="ro-e" x="83.5" y="15.7" width="14.2" height="19.3" rx="7.1"/></svg>ro</a>
-  <nav class="nav" aria-label="Main"><a href="../pro/" aria-current="page">Pro</a><a href="../license/">License</a><a href="../privacy/">Privacy</a></nav>
+  <nav class="nav" aria-label="Main"><a href="../pro/" aria-current="page">Pro</a><a href="../privacy/">Privacy</a></nav>
 </header>
 <main>
 
@@ -29,7 +29,7 @@
       <div class="hero-actions">
         <a class="btn" href="#pro-sandbox">Try live sandbox</a>
         <a class="btn ghost" href="#pricing">See pricing</a>
-        <span class="muted small">Same app as the free ro. A license key turns pro on.</span>
+        <span class="muted small">Same app as the free ro. Pay in ro and it turns pro on by itself. No key.</span>
       </div>
     </div>
   </div>
@@ -99,11 +99,11 @@
 
   <section aria-labelledby="trust">
     <h2 id="trust">Why you can trust it</h2>
-    <ul class="list">
-      <li><strong>No unapproved writes.</strong> Search only reads. Tidying moves only what you approve and never deletes files without your Terminal confirmation.</li>
-      <li><strong>Local-first.</strong> Search never sends file contents or paths anywhere. Online requests are limited to app updates and picking up your pro key via a random install ID (which you can turn off).</li>
-      <li><strong>Secrets excluded.</strong> Password and key files stay out of search results.</li>
-    </ul>
+    <div class="grid grid--3">
+      <div class="card"><h3>It doesn't touch your files.</h3><p>Search only reads. Tidying is optional and moves only what you approve. Nothing is deleted for good unless you confirm it yourself in Terminal.</p></div>
+      <div class="card"><h3>Your files never leave your Mac.</h3><p>Search doesn't use an AI service and doesn't send file contents or lists of paths. The only other thing ro does online is confirm your purchase and renewals, sending a random install ID and nothing else. You can turn that off.</p></div>
+      <div class="card"><h3>Secret files stay out of results.</h3><p>Password and key files are excluded from search.</p></div>
+    </div>
   </section>
 
   <section aria-labelledby="unproven">
@@ -113,7 +113,7 @@
 
   <section aria-labelledby="compare">
     <h2 id="compare">Free ro and pro</h2>
-    <table class="compare">
+    <div class="table-card"><table class="compare">
       <thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Pro</th></tr></thead>
       <tbody>
         <tr><td>Desktop pet: looks, size, expressions, wander, app reactions, menu bar icon</td><td>✓</td><td>✓</td></tr>
@@ -121,7 +121,7 @@
         <tr><td>Tidy Downloads with one-step undo</td><td>—</td><td>✓</td></tr>
         <tr><td>AI handoff and AI tool connection</td><td>—</td><td>✓</td></tr>
       </tbody>
-    </table>
+    </table></div>
   </section>
 
   <section id="pricing" aria-labelledby="price-h">
@@ -140,23 +140,24 @@
         <a class="btn ghost" data-checkout="monthly" data-label="Get pro — monthly" aria-disabled="true">Coming soon</a>
       </div>
     </div>
-    <p class="fine">14-day refund · Use it on all the Macs you personally use · Apple Silicon · macOS 13 or later · Prices in USD; tax is added at checkout where it applies.</p>
+    <p class="fine">Start checkout from ro (menu bar icon → Get pro…) so ro knows which Mac to turn on. · 14-day refund · Use it on all the Macs you personally use · Apple Silicon · macOS 13 or later · Prices in USD; tax is added at checkout where it applies.</p>
   </section>
 
   <section aria-labelledby="get">
     <h2 id="get">How you get it</h2>
     <ol class="steps">
-      <li><div><strong>Buy pro</strong>In ro: menu bar icon → <strong style="display:inline">Get pro…</strong>, or use the buttons above (via Polar).</div></li>
-      <li><div><strong>Automatic or email key</strong>Bought in ro? Pro activates automatically. Bought here? A key starting with <code>RO1.</code> arrives by email.</div></li>
-      <li><div><strong>Paste key offline</strong>Menu bar icon → <strong style="display:inline">License…</strong> → paste → Save key → Restart ro now.</div></li>
+      <li><div><strong>Open ro and choose Get pro…</strong>Click the ro icon in the menu bar. Checkout opens on Polar, our merchant of record. Your card details never reach us.</div></li>
+      <li><div><strong>Pay</strong>Pick yearly or monthly. When the payment goes through, you can close the page.</div></li>
+      <li><div><strong>pro turns on by itself</strong>ro notices the payment within seconds and switches on. Nothing to paste, no key, no new download.</div></li>
     </ol>
   </section>
 
-  <section aria-labelledby="faq">
+  <section id="help" aria-labelledby="faq">
     <h2 id="faq">Questions</h2>
-    <details><summary>How many Macs can I use it on?</summary><p>All the Macs you personally use. Please don't share your key with other people.</p></details>
-    <details><summary>Does it work offline?</summary><p>Yes, once pro is on. The key is checked on your Mac, and pro features run on your Mac. ro goes online to check for app updates and, if you bought from ro, to pick up your key and renewals.</p></details>
-    <details><summary>What happens if I cancel?</summary><p>Pro keeps working until your key expires: the end of the period you paid for, plus 14 days. Then ro goes back to the free version. Your files and history stay as they are.</p></details>
+    <details><summary>How many Macs can I use it on?</summary><p>All the Macs you personally use. Please don't share pro with other people.</p></details>
+    <details><summary>Does it work offline?</summary><p>Yes. Pro features run on your Mac. ro goes online only to check for app updates and to confirm your purchase and renewals.</p></details>
+    <details><summary>What happens if I cancel?</summary><p>Pro keeps working until the end of the period you paid for, plus 14 days. Then ro goes back to the free version. Your files and history stay as they are.</p></details>
+    <details><summary>pro didn't turn on after I paid</summary><p>Keep ro open and online for a minute. Still free? Manage or ask about your order in <a data-portal hidden>Polar's customer portal</a> or write to <a data-support>our support address (coming soon)</a>.</p></details>
     <details><summary>Can I get a refund?</summary><p>Yes, within 14 days. See the <a href="../refund/">refund policy</a>.</p></details>
     <details><summary>Does it run on Intel Macs or Windows?</summary><p>No. ro needs an Apple Silicon Mac with macOS 13 or later.</p></details>
   </section>
@@ -164,7 +165,7 @@
 
 </main>
 <footer class="wrap foot">
-  <nav aria-label="Footer"><a href="../pro/">Pro</a><a href="../license/">License help</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a><a href="../refund/">Refunds</a><a href="https://github.com/rhochoi/ro-pet/releases">Release notes</a></nav>
+  <nav aria-label="Footer"><a href="../pro/">Pro</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a><a href="../refund/">Refunds</a><a href="https://github.com/rhochoi/ro-pet/releases">Release notes</a></nav>
   <p>ro runs on Apple Silicon Macs with macOS 13 or later. Orders are processed by Polar, our merchant of record.</p>
 </footer>
 </body>

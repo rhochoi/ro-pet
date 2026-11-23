@@ -13,7 +13,7 @@
 <body>
 <header class="wrap top">
   <a class="brand" href="../"><svg class="ro-mark ro-mark--brand" viewBox="0 0 145.67 139.33" aria-hidden="true"><rect class="ro-b" width="120.33" height="50.67" rx="25.33"/><rect class="ro-b" y="57" width="95" height="38" rx="19"/><rect class="ro-b" y="101.33" width="145.67" height="38" rx="19"/><rect class="ro-e" x="57" y="11.08" width="12.67" height="25.33" rx="6.33"/><rect class="ro-e" x="82.33" y="14.25" width="11.08" height="20.58" rx="5.54"/></svg>ro</a>
-  <nav class="nav" aria-label="Main"><a href="../pro/">Pro</a><a href="../license/">License</a><a href="../privacy/" aria-current="page">Privacy</a></nav>
+  <nav class="nav" aria-label="Main"><a href="../pro/">Pro</a><a href="../privacy/" aria-current="page">Privacy</a></nav>
 </header>
 <main>
 
@@ -29,7 +29,7 @@
     <ul>
       <li><strong>Update checks.</strong> Once a day ro asks GitHub whether a new version exists, and installs it automatically. GitHub sees your IP address and the app version.</li>
       <li><strong>Your files stay on your Mac.</strong> Search and tidying run on your Mac. ro doesn't send file contents or lists of paths, and it doesn't use an AI service to search.</li>
-      <li><strong>Getting your pro key.</strong> If you buy pro from ro’s menu (Get pro…), ro asks our license service for your key: every 15 seconds for up to 2 hours after you start checkout, then once a day while pro is on, to pick up renewals. It sends only a random install ID made on your Mac: no files, paths, name, or email. You can turn this off in ro → License…. Either way, the key itself is checked on your Mac.</li>
+      <li><strong>Turning on pro.</strong> If you buy pro from ro’s menu (Get pro…), ro asks our license service whether your payment went through: every 15 seconds for up to 2 hours after you start checkout, then once a day while pro is on, to pick up renewals. It sends only a random install ID made on your Mac: no files, paths, name, or email. You can turn this off in ro’s settings; pro then won’t turn on or renew by itself.</li>
       <li><strong>AI handoff</strong> puts a note on your clipboard and opens the AI app you choose. ro doesn't send it. Secrets and personal details are hidden in the note.</li>
       <li><strong>Activity history</strong> is off by default. If you turn it on, it stays in <code>~/.ro</code> on your Mac for 7 days.</li>
     </ul>
@@ -37,8 +37,8 @@
     <h2>When you buy pro</h2>
     <ul>
       <li><strong>Polar</strong>, our merchant of record, collects your name, email, country, and payment details to charge you, handle tax, and send receipts. We never see your card details.</li>
-      <li>Polar tells our license service your email address and order details. The service signs your key and emails it through our email provider (Resend). If you bought from ro, it also keeps your key under a scrambled (hashed) form of ro’s install ID so ro can pick it up, until 30 days after the key expires. It keeps nothing else about you.</li>
-      <li>We use your email only for your key, renewals, and replies to messages you send us.</li>
+      <li>Polar tells our license service your email address and order details. The service confirms the purchase for ro. If you bought from ro, it also keeps your purchase under a scrambled (hashed) form of ro’s install ID so ro can confirm it, until 30 days after the paid period ends. It keeps nothing else about you.</li>
+      <li>We use your email only for your receipts, renewals, and replies to messages you send us.</li>
     </ul>
 
     <h2>Contact</h2>
@@ -48,7 +48,7 @@
 
 </main>
 <footer class="wrap foot">
-  <nav aria-label="Footer"><a href="../pro/">Pro</a><a href="../license/">License help</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a><a href="../refund/">Refunds</a><a href="https://github.com/rhochoi/ro-pet/releases">Release notes</a></nav>
+  <nav aria-label="Footer"><a href="../pro/">Pro</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a><a href="../refund/">Refunds</a><a href="https://github.com/rhochoi/ro-pet/releases">Release notes</a></nav>
   <p>ro runs on Apple Silicon Macs with macOS 13 or later. Orders are processed by Polar, our merchant of record.</p>
 </footer>
 </body>
