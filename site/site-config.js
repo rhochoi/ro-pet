@@ -2,8 +2,9 @@
 // Empty value = the page shows a "coming soon" state instead of a broken link.
 window.RO_SITE = {
   checkout: {
-    yearly: "https://buy.polar.sh/polar_cl_wAHSgJJpSs01cUeVPL8Wnw4QbIvw1GByW2fne2L7r38",
-    monthly: "https://buy.polar.sh/polar_cl_Gr2zKkigE4Yq9qOaYuNCWqIBKvcBOKIDtghji2oWmfn",
+    // 비워 둔다: 사이트에서 바로 결제하면 설치 토큰이 없어 pro가 자동으로 켜지지 않는다(키 입력 칸 없음). 결제는 앱의 Get pro…에서만 시작한다
+    yearly: "",
+    monthly: "",
   },
   portal: "https://polar.sh/robot/portal",
   support: "support@getropet.com",

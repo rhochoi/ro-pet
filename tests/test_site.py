@@ -85,9 +85,12 @@ class SiteStaticTest(unittest.TestCase):
         for name in ("yearly", "monthly"):
             value = re.search(rf'{name}: "([^"]*)"', cfg).group(1)
             self.assertTrue(value == "" or value.startswith("https://"), name)
+            self.assertEqual(value, "", name)   # 사이트 결제는 설치 토큰이 없어 자동 활성화가 안 된다 → 앱의 Get pro…로만
         pro = (SITE / "pro/index.html").read_text(encoding="utf-8")
-        self.assertEqual(pro.count('aria-disabled="true">Coming soon'), 2)
-        self.assertNotIn('data-checkout="yearly" href', pro)   # 링크는 설정을 채웠을 때만 스크립트가 붙인다
+        self.assertNotIn("data-checkout", pro)
+        self.assertNotIn("buy.polar.sh", pro)
+        self.assertEqual(pro.count('href="#get">Buy '), 2)
+        self.assertIn("ro-pet.dmg", pro)
 
     def test_legal_pages_are_finalized(self):
         for page in ("privacy/index.html", "terms/index.html", "refund/index.html"):
@@ -673,19 +676,7 @@ class SiteBrowserTest(unittest.TestCase):
             self.assertGreaterEqual(box[0], 0, path)
             self.assertLessEqual(box[1], 375, path)
 
-    def test_filled_checkout_turns_buttons_on(self):
-        page, _ = self.open("pro/", 1280)
-        page.evaluate("""() => { RO_SITE.checkout.yearly = 'https://buy.polar.sh/test';
-                                 RO_SITE.checkout.monthly = 'javascript:alert(1)';
-                                 RO_SITE.support = 'help@example.test';
-                                 const m = document.querySelector('[data-checkout="monthly"]');
-                                 m.removeAttribute('href'); m.setAttribute('aria-disabled', 'true');
-                                 RO_SITE_APPLY(); }""")
-        y = '[data-checkout="yearly"]'
-        self.assertEqual(page.get_attribute(y, "href"), "https://buy.polar.sh/test")
-        self.assertIsNone(page.get_attribute(y, "aria-disabled"))
-        self.assertEqual(page.text_content(y), "Get pro — yearly")
-        self.assertIsNone(page.get_attribute('[data-checkout="monthly"]', "href"))  # https가 아니면 켜지지 않는다
+    def test_support_and_portal_links_follow_config(self):
         page, _ = self.open("thanks/", 1280)
         page.evaluate("() => { RO_SITE.support = 'help@example.test'; RO_SITE_APPLY(); }")
         self.assertEqual(page.get_attribute("[data-support]", "href"), "mailto:help@example.test")
