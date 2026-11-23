@@ -116,7 +116,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.signing.outputs.signed }}
         run: |
-          notes="Apple Silicon (macOS 13+) only. Drag ro to Applications. Free mini desktop pet included; unlock ro pro with a license key."
+          notes="Apple Silicon (macOS 13+) only. Drag ro to Applications. Free mini desktop pet included; buy ro pro inside the app (Get pro…) and it turns on by itself."
           [ "$SIGNED" = "true" ] || notes="$notes This build is not notarized: see the README for the first-launch warning."
           cp build/ro-pet-*.dmg build/ro-pet.dmg
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then

@@ -60,9 +60,10 @@ check_live "In-app auto-checkout issuer URL (ro/licensenet.py or RO_LICENSE_ISSU
   'grep -qE "^ISSUER = \"https://" ro/licensenet.py || [ -n "${RO_LICENSE_ISSUER:-}" ]' \
   'Set ISSUER in ro/licensenet.py or pass RO_LICENSE_ISSUER=https://... at DMG build time'
 
-check_live "Web checkout URLs (site/site-config.js)" \
-  'grep -qE "yearly:[[:space:]]*\"https://" site/site-config.js && grep -qE "monthly:[[:space:]]*\"https://" site/site-config.js' \
-  'Fill Polar checkout URLs in site/site-config.js'
+# 사이트 직접 결제는 끈다: 설치 토큰 없이 사면 키가 메일로만 오는데 앱에는 키 입력 칸이 없다. 결제는 앱의 Get pro…에서만 시작한다
+check_live "No direct web checkout (site/site-config.js, site/pro)" \
+  'grep -qE "yearly:[[:space:]]*\"\"" site/site-config.js && grep -qE "monthly:[[:space:]]*\"\"" site/site-config.js && ! grep -q "buy.polar.sh" site/pro/index.html' \
+  'Keep checkout.yearly/monthly empty in site/site-config.js (checkout starts in the app so pro can auto-activate)'
 
 check_live "Customer portal & support email (site/site-config.js)" \
   'grep -qE "portal:[[:space:]]*\"https://" site/site-config.js && grep -qE "support:[[:space:]]*\"[^\"@]+@[^\"]+\"" site/site-config.js' \

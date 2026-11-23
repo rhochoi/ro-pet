@@ -62,8 +62,7 @@ Before going live with real payments, run in strict mode (every check must be `[
 ## 3. Website & Legal Finalization (`site/`)
 
 1. Update `site/site-config.js`:
-   - `checkout.yearly`: Polar yearly checkout link (`https://...`)
-   - `checkout.monthly`: Polar monthly checkout link (`https://...`)
+   - `checkout.yearly` / `checkout.monthly`: keep **empty**. Checkout starts inside ro (Get pro…) so the purchase carries the install ID and pro turns on by itself; a web purchase would only email a key, and the app has no key field.
    - `portal`: Polar customer portal URL (`https://...`)
    - `support`: real support email address
 2. Review and finalize legal copy:
@@ -82,7 +81,7 @@ Before going live with real payments, run in strict mode (every check must be `[
    ```
 3. Build, sign, notarize, and staple the commercial DMG:
    ```bash
-   APP_VERSION=0.4.0 \
+   APP_VERSION=<version> \
      SIGN_IDENTITY="Developer ID Application: youngrok choi (RX7H5VV65U)" \
      NOTARY_PROFILE=ro-notary \
      RO_LICENSE_ISSUER="https://license.yourdomain.com" \
@@ -90,25 +89,25 @@ Before going live with real payments, run in strict mode (every check must be `[
    ```
 4. Generate the Sparkle `appcast.xml` (do not modify the DMG afterward):
    ```bash
-   ./scripts/make-appcast.sh build/ro-pet-0.4.0.dmg
+   ./scripts/make-appcast.sh build/ro-pet-<version>.dmg
    ```
 5. Verify Gatekeeper acceptance:
    ```bash
-   spctl --assess --type open --context context:primary-signature -v build/ro-pet-0.4.0.dmg
+   spctl --assess --type open --context context:primary-signature -v build/ro-pet-<version>.dmg
    ```
 6. Publish the GitHub Release (include a fixed-name `ro-pet.dmg` copy so direct download links always serve the latest notarized DMG):
    ```bash
-   cp build/ro-pet-0.4.0.dmg build/ro-pet.dmg
-   gh release create v0.4.0 build/ro-pet-0.4.0.dmg build/ro-pet.dmg build/appcast.xml \
-     --repo rhochoi/ro-pet --title "ro v0.4.0" \
+   cp build/ro-pet-<version>.dmg build/ro-pet.dmg
+   gh release create v<version> build/ro-pet-<version>.dmg build/ro-pet.dmg build/appcast.xml \
+     --repo rhochoi/ro-pet --title "ro v<version>" \
      --notes "Apple Silicon (macOS 13+). Free mini desktop pet + ro pro licensing and in-app checkout."
    rm -f build/ro-pet.dmg
    ```
 
 ## 5. End-to-End Smoke Test Before Public Announcement
 
-1. Download `ro-pet-0.4.0.dmg` on a clean Mac (or separate user account) and open without Gatekeeper errors.
-2. Confirm `mini` mode opens cleanly, pet panel shows **Upgrade to Pro** / **License key**.
+1. Download `ro-pet-<version>.dmg` on a clean Mac (or separate user account) and open without Gatekeeper errors.
+2. Confirm `mini` mode opens cleanly, pet panel shows **Upgrade to Pro** / **License**.
 3. Run a Polar sandbox purchase from **Upgrade to Pro** → verify browser opens checkout → webhook issues `RO1.` key → email arrives → ro auto-activates Pro and restarts into Pro mode.
 4. Confirm the **License** tab shows status, the restart bar, and **Get my key automatically** only — there is no key paste or remove (keys arrive only through checkout auto-activation).
 5. Test `⌥R` file search (including OCR on a screenshot/PDF without `swiftc` on PATH) and Downloads organize preview + undo.
