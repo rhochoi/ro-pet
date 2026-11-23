@@ -19,3 +19,7 @@ ro-pet = "ro_pet.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ro", "ro_pet"]
+
+[tool.hatch.build.targets.sdist]
+# PyPI 소스 배포에는 패키지 코드와 테스트만 싣는다(사이트·발급 서버·빌드 로그·에이전트 지침은 빼고)
+include = ["ro", "ro_pet", "tests", "README.md", "pyproject.toml"]
