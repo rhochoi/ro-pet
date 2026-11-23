@@ -110,5 +110,5 @@ Before going live with real payments, run in strict mode (every check must be `[
 1. Download `ro-pet-0.4.0.dmg` on a clean Mac (or separate user account) and open without Gatekeeper errors.
 2. Confirm `mini` mode opens cleanly, pet panel shows **Upgrade to Pro** / **License key**.
 3. Run a Polar sandbox purchase from **Upgrade to Pro** → verify browser opens checkout → webhook issues `RO1.` key → email arrives → ro auto-activates Pro and restarts into Pro mode.
-4. Test offline Pro key paste (`License key` tab) and key removal (`Remove key`) to confirm files and records remain intact.
+4. Confirm the **License** tab shows status, the restart bar, and **Get my key automatically** only — there is no key paste or remove (keys arrive only through checkout auto-activation).
 5. Test `⌥R` file search (including OCR on a screenshot/PDF without `swiftc` on PATH) and Downloads organize preview + undo.
