@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -519,7 +520,7 @@ class PetTest(unittest.TestCase):
         self.assertIn("let px = max(1, NSGraphicsContext.current?.cgContext.ctm.a ?? 2)", src)
         self.assertIn("body.origin.y = base.minY - max(1 / px, round(pose.base.minY - pose.body.maxY)) - body.height", src)
 
-    @unittest.skipUnless(shutil.which("swiftc"), "swiftc 없음")
+    @unittest.skipUnless(sys.platform == "darwin" and shutil.which("swiftc"), "macOS swiftc 필요(AppKit)")
     def test_cpu_gait_selftest(self):
         # 앱을 띄우지 않고 계산만 확인한다: idle 인덱스, UInt32 wrap, 순간 튐, 50% 흔들림, 계단 반응, 과열 해제
         with tempfile.TemporaryDirectory() as tmp:

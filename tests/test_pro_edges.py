@@ -63,6 +63,7 @@ class Home(unittest.TestCase):
 
 class DatalessAndPackages(Home):
     # 1~4: iCloud에만 있는 파일, 패키지
+    @unittest.skipUnless(sys.platform == "darwin", "macOS 전용(setiopolicy_np)")
     def test_01_materialization_is_off_in_the_process(self):
         self.assertEqual(fsguard.materialization_policy(), 1)
 
@@ -169,8 +170,8 @@ class JournalRecovery(Home):
         cid = self.card(staging.item("quarantine", a, 0.95, "x"), staging.item("quarantine", b, 0.95, "x"))
         self.stage.apply(cid, [1, 2], approve=True)
         moved_b = next((self.ro / "cleanup" / "trash").rglob("*b.dmg"))
-        moved_b.unlink()
-        touch(moved_b, text="다른 파일")                      # 그 사이 바뀜(다른 inode)
+        fresh = touch(moved_b.with_name(moved_b.name + ".new"), text="다른 파일")
+        os.replace(fresh, moved_b)                           # 그 사이 바뀜(다른 inode: 옛 파일이 있을 때 만들어 번호 재사용을 피한다)
         res = self.stage.undo(cid)
         self.assertTrue(a.exists())
         self.assertFalse(b.exists())

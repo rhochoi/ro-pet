@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
 from pathlib import Path
 
@@ -13,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def fake_st(flags=0, mode=stat.S_IFREG | 0o644, mtime=0):
-    return os.stat_result((mode, 1, 1, 1, 0, 0, 10, mtime, mtime, mtime), {"st_flags": flags})
+    # os.stat_result는 Linux에서 st_flags 칸을 받지 않는다: 필요한 칸만 가진 가짜로 만든다
+    return types.SimpleNamespace(st_mode=mode, st_ino=1, st_dev=1, st_nlink=1, st_uid=0, st_gid=0, st_size=10,
+                                 st_atime=mtime, st_mtime=mtime, st_ctime=mtime, st_flags=flags)
 
 
 class FsGuardTest(unittest.TestCase):

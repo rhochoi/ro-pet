@@ -405,8 +405,9 @@ SOURCE
 
     def test_embedded_script_parses(self):
         script = re.search(r"<script>(.*?)</script>", pet.PET_HTML, re.S).group(1)
-        result = subprocess.run(["node", "-e", "new (require('node:vm').Script)(" + json.dumps(script) + ")"],
-                                capture_output=True, text=True, timeout=10)
+        # 인자로 넘기면 Linux에서 "Argument list too long"(인자 하나 128KB 한도) → stdin으로 넘긴다
+        result = subprocess.run(["node", "-e", "new (require('node:vm').Script)(require('node:fs').readFileSync(0, 'utf8'))"],
+                                input=script, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
