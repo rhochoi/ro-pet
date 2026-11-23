@@ -136,29 +136,3 @@ def apply_edition_from_license():
     if os.environ.get("RO_EDITION_SOURCE") == "license":
         os.environ["RO_EDITION"] = edition()
 
-
-def main(argv):
-    import argparse
-    import sys
-    ap = argparse.ArgumentParser(prog="ro license", description="ro pro 라이선스 키(이 Mac 안에서만 검사, 인터넷 안 씀)")
-    sub = ap.add_subparsers(dest="cmd")
-    sub.add_parser("status", help="현재 키 상태")
-    st = sub.add_parser("set", help="키 저장(검사 후). 인자 대신 '-'면 표준 입력에서 읽음")
-    st.add_argument("key")
-    sub.add_parser("remove", help="키 지우기(mini로 돌아감, 파일·기록은 그대로)")
-    args = ap.parse_args(argv)
-    if args.cmd == "set":
-        key = sys.stdin.read() if args.key == "-" else args.key
-        try:
-            p = save(key)
-        except LicenseError as exc:
-            print(str(exc), file=sys.stderr)
-            return 1
-        print(f"저장했습니다. pro 사용 중 · {_date(p['exp'])}까지. 펫을 다시 열면 적용됩니다.")
-        return 0
-    if args.cmd == "remove":
-        print("키를 지웠습니다(mini). 파일과 기록은 그대로입니다." if remove() else "지울 키가 없습니다.")
-        return 0
-    s = status()
-    print(s["message"])
-    return 0 if s["state"] != "invalid" else 1

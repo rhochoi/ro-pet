@@ -174,8 +174,8 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     border-radius: 50%;
     display: flex;
@@ -233,17 +233,17 @@
   /* Home: 인사 */
   .greeting-section { display: flex; flex-direction: column; gap: 4px; }
   .greeting-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; color: var(--panel-fg); }
-  .greeting-sub { font-size: 11px; line-height: 1.4; color: var(--muted); }
+  .greeting-sub { font-size: 13px; line-height: 1.4; color: var(--muted); }
   .sub-filters { display: flex; gap: 4px; margin-top: 8px; }
   .sub-pill {
-    height: 24px;
+    height: 28px;
     padding: 0 12px;
     background: var(--panel-soft);
     color: var(--muted);
     border: none;
     border-radius: 999px;
     font: inherit;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.14s, color 0.14s;
@@ -275,15 +275,15 @@
   /* 사람이 확인하는 카드 */
   .gate-box {
     background: var(--panel-soft);
-    border: 1.5px solid var(--panel-fg);
+    border: 1px solid var(--line, color-mix(in srgb, var(--panel-fg) 22%, transparent));
     border-radius: 12px;
-    padding: 12px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
-  .gate-head { font-size: 13px; font-weight: 600; color: var(--panel-fg); }
-  .gate-body { font-size: 13px; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; color: var(--panel-fg); }
+  .gate-head { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--panel-fg); }
+  .gate-body { font-size: 13px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; color: var(--muted, var(--panel-fg)); }
   .gate-files {
     margin: 0; padding: 0; list-style: none; max-height: 92px; overflow-y: auto;
     font-size: 11px; line-height: 1.4; color: var(--panel-fg);
@@ -292,7 +292,7 @@
   .gate-files li span { overflow: hidden; text-overflow: ellipsis; }
   .gate-files li .arrow { color: var(--muted); flex-shrink: 0; }
   #writeCard:focus { outline: none; }
-  .gate-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .gate-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .action-btn {
     height: var(--control-sm);
     padding: 0 12px;
@@ -389,10 +389,10 @@
   /* 설정(Style): 묶음은 선 대신 여백으로 나눈다 */
   .settings-stream { display: flex; flex-direction: column; gap: 16px; }
   .setting-block { display: flex; flex-direction: column; gap: 8px; }
-  .block-title { font-size: 11px; font-weight: 600; color: var(--muted); }
-  .block-sub { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .block-title { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .block-sub { font-size: 13px; color: var(--muted); line-height: 1.4; }
   .options-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  #fileOrgBlock .options-row .opt-btn { flex: 1 1 auto; }  /* 날짜가 붙은 되돌리기 버튼이 길면 다음 줄로 넘긴다 */
+  #fileOrgBlock .options-row .opt-btn, #proConsentBlock .options-row .opt-btn { flex: 1 1 auto; }  /* 날짜가 붙은 되돌리기 버튼이 길면 다음 줄로 넘긴다 */
   .opt-btn {
     flex: 1;
     display: inline-flex;
@@ -1100,8 +1100,8 @@
   .toast:hover .toast-bar, .toast:focus-within .toast-bar { animation-play-state: paused; }
   @keyframes toastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   .mini-btn {
-    border: 1px solid var(--panel-border); background: var(--panel-bg); color: var(--panel-fg); height: 24px;
-    border-radius: 999px; font: inherit; font-size: 11px; font-weight: 600; padding: 0 8px; cursor: pointer;
+    border: 1px solid var(--panel-border); background: var(--panel-bg); color: var(--panel-fg); height: 28px;
+    border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; padding: 0 12px; cursor: pointer;
   }
   .mini-btn.primary { background: var(--selected); color: var(--panel-bg); border-color: var(--selected); }
   /* C · 근거 붙은 답 · D · 정리 카드 */

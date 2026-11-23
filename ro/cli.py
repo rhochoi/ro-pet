@@ -67,9 +67,6 @@ def _run(argv):
     if argv[:1] == ["learned"]:  # ro pro 전용: ro가 배운 것
         from . import profile
         return profile.main(argv[1:])
-    if argv[:1] == ["license"]:  # pro 라이선스 키(오프라인 검사)
-        from . import license as license_mod
-        return license_mod.main(argv[1:])
     if argv[:1] == ["cards"]:  # ro pro 전용 카드 색인. mini에서는 불러오지도 않는다
         from . import cards
         return cards.main(argv[1:])
@@ -124,7 +121,6 @@ def _run(argv):
     sub.add_parser("organize", add_help=False,
                    help="파일 분류·이름 정리(scan → show → apply → undo, 승인한 것만 이동)")  # 목록 표시용
     # 아래 셋도 _run 맨 앞에서 먼저 갈라져 여기까지 오지 않는다. --help 목록에 보이게만 등록한다(RO-AUD-107)
-    sub.add_parser("license", add_help=False, help="pro 라이선스 키 상태·저장·지우기(이 Mac 안에서만 검사)")
     sub.add_parser("learned", add_help=False, help="(ro pro) ro가 배운 것 보기·고정·끄기·지우기")
     sub.add_parser("cards", add_help=False, help="(ro pro) 파일 카드 색인·폴더 건강검진(읽기 전용)")
     st = sub.add_parser("storage", help="용량 감사(읽기 전용): 캐시·SQLite 빈 공간·오래 안 쓴 앱 크기")

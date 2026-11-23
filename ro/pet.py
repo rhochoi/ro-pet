@@ -123,8 +123,8 @@ def default_lang():
     return lang if lang in LANGS else "en"
 # 에디션: "mini"(V1, 꾸미기 전용: 펫·재질·색·표정·모션만, 파일 기능 없음) / "pro"(V2, 기능 포함)
 EDITIONS = ("mini", "pro")
-MINI_API = ("/api/prefs", "/api/action", "/api/license")
-RESTART_EXIT = 75  # 호스트가 이 코드로 끝나면 라이선스 변경을 적용하려고 다시 연다(pet_mac.swift finishLicense)  # mini 에디션에서 열어 두는 POST 경로
+MINI_API = ("/api/prefs", "/api/action", "/api/license")  # mini 에디션에서 열어 두는 POST 경로
+RESTART_EXIT = 75  # 호스트가 이 코드로 끝나면 다시 연다
 
 
 def default_edition():
@@ -360,10 +360,10 @@ class PetRuntime:
             self.tact.record(trigger, "shown", level=1, now=now, why=why)
         return decision, None
 
-    # ---- pro 라이선스(docs/SITE-PLAN.md P2): 키는 이 Mac에서만 검사하고, 응답·로그에 키를 싣지 않는다 ----
+    # ---- pro 자동 활성화(docs/SITE-PLAN.md): 사용자는 키를 만지지 않는다. 받은 키는 이 Mac에서 서명을 다시 검사한 뒤에만 저장한다 ----
     def license_api(self, data):
         act = data.get("action", "status")
-        if act not in ("status", "set", "remove", "buy", "auto", "check"):
+        if act not in ("status", "buy", "auto", "check"):
             return {"ok": False, "error": "Unsupported license action."}
         if act == "buy":   # 'Get pro…': 설치 토큰 해시를 실은 결제 주소. 호스트가 브라우저로 연다
             plan = data.get("plan")
@@ -378,23 +378,13 @@ class PetRuntime:
                 return {"ok": False, "error": "on must be true or false."}
             licensenet.auto(data["on"], self.home)
         activated = False
-        if act == "check":
+        if act == "check":   # 결제 뒤 돌아왔을 때: 발급 서버에서 키를 받아 이 Mac에서 서명을 다시 검사한 뒤 저장한다
             if licensenet.active(self.home):
                 activated = licensenet.sync(self.home)
-        if act == "set":
-            key = data.get("key")
-            if not isinstance(key, str):
-                return {"ok": False, "error": "키가 비어 있습니다."}
-            try:
-                license_mod.save(key, self.home)
-            except license_mod.LicenseError as exc:
-                return {"ok": False, "error": str(exc), **license_mod.status(self.home)}
-        elif act == "remove":
-            license_mod.remove(self.home)
         st = license_mod.status(self.home)
         now_edition = "pro" if st["state"] == "valid" else "mini"
         # 번들 앱(실행기가 키로 에디션을 정할 때)만 다시 열어 바뀐 에디션을 적용한다. 개발 실행은 환경 변수가 정한다
-        restart = ((act in ("set", "remove") or activated) and os.environ.get("RO_EDITION_SOURCE") == "license"
+        restart = (activated and os.environ.get("RO_EDITION_SOURCE") == "license"
                    and now_edition != self.edition)
         if restart:
             self.restart_requested = True

@@ -196,22 +196,16 @@ class LicenseToolTest(unittest.TestCase):
                 self.assertTrue(r.stderr.strip(), args)
                 self.assertNotIn("RO1.", r.stdout, args)
 
-class LicenseCliTest(unittest.TestCase):
-    def test_cli_set_status_remove(self):
+class NoUserKeyUiTest(unittest.TestCase):
+    def test_no_user_facing_key_commands(self):
         from ro import cli
-        with tempfile.TemporaryDirectory() as home, mock.patch.object(license, "PUBLIC_KEYS", {"t1": PUB}), \
-                mock.patch.object(license.config, "HOME", home):
-            key = make(exp=4_000_000_000)
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                self.assertEqual(cli.main(["license", "set", key]), 0)
-                self.assertEqual(cli.main(["license", "status"]), 0)
-                self.assertEqual(cli.main(["license", "remove"]), 0)
-            self.assertIn("pro 사용 중", out.getvalue())
-            err = io.StringIO()
-            with contextlib.redirect_stderr(err):
-                self.assertEqual(cli.main(["license", "set", make(seed=OTHER)]), 1)
-            self.assertIn("서명", err.getvalue())
+        self.assertFalse(hasattr(license, "main"))
+        r = subprocess.run([sys.executable, "-m", "ro", "license", "set", "x"], capture_output=True, text=True, cwd=ROOT)
+        self.assertNotEqual(r.returncode, 0)
+        swift = (ROOT / "ro/pet_mac.swift").read_text(encoding="utf-8")
+        for gone in ("openLicense", "showLicenseDialog", "Save key", "Paste the key", "RO1.…"):
+            self.assertNotIn(gone, swift)
+        self.assertNotIn("license", cli.build_parser().format_help() if hasattr(cli, "build_parser") else "")
 
 
 class PetLicenseApiTest(unittest.TestCase):
@@ -245,37 +239,12 @@ class PetLicenseApiTest(unittest.TestCase):
         except self.urlerror.HTTPError as e:
             return e.code, e.read().decode()
 
-    def test_set_remove_and_restart_only_in_app(self):
-        key = make(exp=4_000_000_000)
+    def test_status_only_and_key_actions_are_gone(self):
         code, raw = self.post("/api/license", {"action": "status"})
         self.assertEqual((code, self.json.loads(raw)["state"]), (200, "none"))
-        with mock.patch.dict(os.environ, {"RO_EDITION_SOURCE": "license"}):
-            code, raw = self.post("/api/license", {"action": "set", "key": key})
-        res = self.json.loads(raw)
-        self.assertEqual((code, res["state"], res["restart"]), (200, "valid", True))
-        self.assertTrue(self.rt.restart_requested)
-        self.assertNotIn(key.split(".")[2], raw)  # 서명(키)을 응답에 싣지 않는다
-        self.assertEqual(license.edition(self.home), "pro")
-        with mock.patch.dict(os.environ, {"RO_EDITION_SOURCE": "license"}):
-            res = self.json.loads(self.post("/api/license", {"action": "remove"})[1])
-        self.assertEqual((res["state"], res["restart"]), ("none", False))  # 이미 mini로 떠 있으면 다시 열 필요 없다
-
-    def test_dev_run_never_restarts(self):
-        with mock.patch.dict(os.environ, {}):
-            os.environ.pop("RO_EDITION_SOURCE", None)
-            res = self.json.loads(self.post("/api/license", {"action": "set", "key": make(exp=4_000_000_000)})[1])
-        self.assertEqual((res["ok"], res["restart"]), (True, False))
-        self.assertFalse(self.rt.restart_requested)
-
-    def test_bad_key_and_bad_input(self):
-        bad = make(seed=OTHER)
-        code, raw = self.post("/api/license", {"action": "set", "key": bad})
-        self.assertEqual(code, 400)
-        self.assertIn("서명", self.json.loads(raw)["error"])
-        self.assertNotIn(bad.split(".")[2], raw)
+        for act in ("set", "remove", "wipe"):
+            self.assertEqual(self.post("/api/license", {"action": act, "key": make()})[0], 400)
         self.assertFalse((Path(self.home) / "license").exists())
-        self.assertEqual(self.post("/api/license", {"action": "set", "key": 5})[0], 400)
-        self.assertEqual(self.post("/api/license", {"action": "wipe"})[0], 400)
 
     def test_mini_still_locks_pro_routes(self):
         self.assertEqual(self.post("/api/recall", {"question": "x"})[0], 403)
@@ -288,9 +257,7 @@ class PetLicenseApiTest(unittest.TestCase):
     def test_host_and_page_wiring(self):
         swift = (ROOT / "ro/pet_mac.swift").read_text(encoding="utf-8")
         js = (ROOT / "ro/pet_ui/pet.js").read_text(encoding="utf-8")
-        self.assertIn('action: #selector(openLicense)', swift)
         self.assertIn("window.licenseFromHost(body)", swift)
-        self.assertIn(f"exit({self.pet.RESTART_EXIT})", swift)
         self.assertIn('apiPost("/api/license"', js)
         src = (ROOT / "ro/pet.py").read_text(encoding="utf-8")
         self.assertIn("restart = (child_proc.wait() == RESTART_EXIT and runtime.restart_requested) or runtime.force_restart", src)
@@ -409,8 +376,8 @@ class LicenseNetTest(unittest.TestCase):
         self.assertIn("#selector(openGetPro)", swift)
         self.assertIn('licenseCall(["action": "buy", "plan": plan])', swift)
         self.assertIn('url.scheme == "https"', swift)
-        self.assertIn('L("Get my key automatically")', swift)          # 끄는 자리가 화면에 있다
-        self.assertIn('licenseCall(["action": "auto", "on": on])', swift)
+        self.assertIn('L("Turn pro on automatically after I pay")', swift)          # 끄는 자리가 화면에 있다
+        self.assertIn('licenseCall(["action": "auto", "on": box.state == .on])', swift)
 
 
 if __name__ == "__main__":

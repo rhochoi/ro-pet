@@ -27,7 +27,7 @@ const RoI18n = (() => {
     "내용이 같은 중복 사본": "Duplicate copy with identical content",
     "확인 카드 · 용량 정리 후보": "Confirm card & space cleanup",
     "용량 정리 후보": "Space cleanup candidates", "파일 정리 후보": "File tidy candidates",
-    "확인 카드로 정리": "Tidy with confirm card", "ro pro 시작 설정": "ro pro setup", "ro가 배운 것 · 먼저 알림": "What ro learned · Heads-ups",
+    "확인 카드로 정리": "Tidy with confirm card", "ro pro 시작 설정": "ro pro setup", "ro pro 시작하기": "Get started with ro pro", "ro가 배운 것 · 먼저 알림": "What ro learned · Heads-ups",
     "배운 것 보기": "View learned", "알림 힌트": "Heads-up hint", "지금 정리할 파일이 없어요": "Nothing to tidy right now",
     "동의를 켜기 전에는 배우거나 먼저 알리지 않아요.": "ro won't learn or nudge until you turn it on.",
     "동의를 켜기 전에는 배우거나 먼저 알리지 않아요. 파일 이름·본문은 남기지 않아요.": "ro won't learn or nudge until you turn it on. File names and contents are never kept.",
@@ -47,7 +47,7 @@ const RoI18n = (() => {
     "기록된 내역이 없습니다.": "Nothing here yet.", "타임라인에서 전체 보기": "See all in Timeline", "다음: ": "Next: ",
     "이 기록의 분류 바꾸기": "Change this entry's project", "없음": "None",
     // 종류 이름(서버)
-    "메모": "Note", "활동": "Activity", "질문": "Question", "평가": "Rating", "펫": "Pet", "정리": "Tidy", "정리안": "Tidy plan",
+    "메모": "Note", "활동": "Activity", "질문": "Question", "평가": "Rating", "펫": "Pet", "펫 시작": "Pet started", "라이선스를 받아 pro로 다시 시작": "Restarted as pro", "라이선스 변경으로 다시 시작": "Restarted after a plan change", "정리": "Tidy", "정리안": "Tidy plan",
     "정리 수정": "Plan edit", "보관함 비움": "Holding emptied", "실행 취소": "Cancelled", "점검": "Check", "요약 전송": "Summary sent",
     "수집": "Collect", "규칙 승인": "Rule approved", "규칙 거절": "Rule rejected", "이름 없음": "Untitled",
     "지도": "Map", "평가 실행": "Eval", "벤치": "Bench", "용량": "Storage", "인수인계": "Handoff", "인수인계 평가": "Handoff rating",

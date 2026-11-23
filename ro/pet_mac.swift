@@ -380,20 +380,13 @@ let roKorean: [String: String] = [
     "Your Mac is struggling": "Mac이 버거워해요", "Open Activity Monitor": "활성 상태 보기 열기", "Not today": "오늘은 그만",
     "Could not change the login setting": "로그인 설정을 바꾸지 못했어요",
     "Check System Settings › General › Login Items": "시스템 설정 › 일반 › 로그인 항목에서 확인해 주세요",
-    "License…": "라이선스…", "ro pro license": "ro pro 라이선스",
-    "Get pro…": "pro 받기…", "Get ro pro": "ro pro 받기", "Get my key automatically": "키 자동으로 받기",
+    "Get pro…": "pro 받기…", "Get ro pro": "ro pro 받기",
+    "Turn pro on automatically after I pay": "결제하면 자동으로 pro 켜기",
     "Pay in your browser. When the payment goes through, ro turns pro on by itself — no key to paste.":
-        "브라우저에서 결제하세요. 결제가 끝나면 ro가 알아서 pro를 켜요. 키를 붙여 넣을 필요 없어요.",
+        "브라우저에서 결제하세요. 결제가 끝나면 ro가 알아서 pro를 켜요.",
     "Yearly · $24": "연간 · $24", "Monthly · $3": "월간 · $3", "Could not start the purchase": "구매를 시작하지 못했어요",
-    "Paste the key from your purchase email. It is checked on this Mac only, without the internet.":
-        "구매 이메일로 받은 키를 붙여 넣으세요. 인터넷 없이 이 Mac에서만 검사해요.",
-    "Save key": "키 저장", "Remove key": "키 지우기", "Cancel": "취소", "Later": "나중에",
-    "Restart ro now": "지금 ro 다시 시작", "License saved": "라이선스를 저장했어요", "Key removed": "키를 지웠어요",
-    "Could not save the key": "키를 저장하지 못했어요",
+    "Cancel": "취소",
     "Could not reach ro. Quit and reopen the pet, then try again.": "ro에 연결하지 못했어요. 펫을 종료했다가 다시 열고 해 보세요.",
-    "ro restarts to apply it. Your files and records stay as they are.": "적용하려면 ro를 다시 시작해요. 파일과 기록은 그대로예요.",
-    "Remove the license key from this Mac? ro goes back to mini. Your files and records stay as they are.":
-        "이 Mac에서 라이선스 키를 지울까요? ro는 mini로 돌아가고, 파일과 기록은 그대로예요.",
 ]
 func L(_ en: String) -> String { roLang == "ko" ? (roKorean[en] ?? en) : en }
 
@@ -1470,9 +1463,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             proItem.target = self
             menu.addItem(proItem)
         }
-        let licenseItem = NSMenuItem(title: L("License…"), action: #selector(openLicense), keyEquivalent: "")
-        licenseItem.target = self
-        menu.addItem(licenseItem)
 
 #if canImport(Sparkle)
         if let updaterController = updaterController {
@@ -1517,11 +1507,14 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         loginItem?.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
-    // ---- pro 라이선스: 키는 웹 화면을 거쳐 로컬 서버(/api/license)로만 간다. 화면·로그에 키를 남기지 않는다 ----
+    // ---- pro 자동 활성화: 사용자는 키를 보지도 붙여 넣지도 않는다. 결제 주소와 자동 받기 켜기·끄기만 로컬 서버(/api/license)로 간다 ----
     @objc private func openGetPro() {
         let alert = NSAlert()
         alert.messageText = L("Get ro pro")
         alert.informativeText = L("Pay in your browser. When the payment goes through, ro turns pro on by itself — no key to paste.")
+        let box = NSButton(checkboxWithTitle: L("Turn pro on automatically after I pay"), target: nil, action: nil)
+        box.state = .on
+        alert.accessoryView = box
         alert.addButton(withTitle: L("Yearly · $24"))
         alert.addButton(withTitle: L("Monthly · $3"))
         alert.addButton(withTitle: L("Cancel"))
@@ -1529,6 +1522,7 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         let choice = alert.runModal()
         let plan = choice == .alertFirstButtonReturn ? "yearly" : choice == .alertSecondButtonReturn ? "monthly" : ""
         guard !plan.isEmpty else { return }
+        licenseCall(["action": "auto", "on": box.state == .on]) { _ in }
         licenseCall(["action": "buy", "plan": plan]) { res in
             if (res["ok"] as? Bool) == true, let s = res["url"] as? String, let url = URL(string: s), url.scheme == "https" {
                 NSWorkspace.shared.open(url)   // 결제는 브라우저에서. 호스트는 연락하지 않는다
@@ -1543,10 +1537,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         }
     }
 
-    @objc private func openLicense() {
-        licenseCall(["action": "status"]) { [weak self] st in self?.showLicenseDialog(st) }
-    }
-
     private func licenseCall(_ body: [String: Any], done: @escaping ([String: Any]) -> Void) {
         webView.callAsyncJavaScript("return await window.licenseFromHost(body);", arguments: ["body": body],
                                     in: nil, in: .page) { result in
@@ -1557,71 +1547,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
             }
             done(res)
         }
-    }
-
-    private func showLicenseDialog(_ st: [String: Any]) {
-        let alert = NSAlert()
-        alert.messageText = L("ro pro license")
-        let current = (st["message"] as? String) ?? (st["error"] as? String) ?? ""
-        alert.informativeText = current + "\n\n" + L("Paste the key from your purchase email. It is checked on this Mac only, without the internet.")
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
-        field.placeholderString = "RO1.…"
-        field.usesSingleLineMode = true
-        field.cell?.isScrollable = true
-        // 자동 받기(ro/licensenet.py): 발급기 주소가 있을 때만 보인다. 끄면 ro는 키를 받으러 연락하지 않는다
-        var autoBox: NSButton? = nil
-        if (st["autoReady"] as? Bool) == true {
-            let box = NSButton(checkboxWithTitle: L("Get my key automatically"), target: nil, action: nil)
-            box.state = ((st["auto"] as? Bool) ?? true) ? .on : .off
-            autoBox = box
-            let stack = NSStackView(views: [field, box])
-            stack.orientation = .vertical
-            stack.alignment = .leading
-            stack.spacing = 10
-            stack.frame = NSRect(x: 0, y: 0, width: 340, height: 56)
-            alert.accessoryView = stack
-        } else {
-            alert.accessoryView = field
-        }
-        alert.addButton(withTitle: L("Save key"))
-        alert.addButton(withTitle: L("Cancel"))
-        let hasKey = (st["state"] as? String).map { $0 != "none" } ?? false
-        if hasKey { alert.addButton(withTitle: L("Remove key")) }
-        NSApp.activate(ignoringOtherApps: true)
-        alert.window.initialFirstResponder = field
-        let choice = alert.runModal()
-        if let box = autoBox {
-            let on = box.state == .on
-            if on != ((st["auto"] as? Bool) ?? true) { licenseCall(["action": "auto", "on": on]) { _ in } }
-        }
-        if choice == .alertFirstButtonReturn {
-            let key = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !key.isEmpty else { return }
-            licenseCall(["action": "set", "key": key]) { [weak self] res in self?.finishLicense(res, saved: true) }
-        } else if hasKey && choice == .alertThirdButtonReturn {
-            let confirm = NSAlert()
-            confirm.messageText = L("Remove the license key from this Mac? ro goes back to mini. Your files and records stay as they are.")
-            confirm.addButton(withTitle: L("Remove key"))
-            confirm.addButton(withTitle: L("Cancel"))
-            guard confirm.runModal() == .alertFirstButtonReturn else { return }
-            licenseCall(["action": "remove"]) { [weak self] res in self?.finishLicense(res, saved: false) }
-        }
-    }
-
-    private func finishLicense(_ res: [String: Any], saved: Bool) {
-        let ok = (res["ok"] as? Bool) ?? false
-        let restart = (res["restart"] as? Bool) ?? false
-        let alert = NSAlert()
-        alert.alertStyle = ok ? .informational : .warning
-        alert.messageText = ok ? L(saved ? "License saved" : "Key removed") : L("Could not save the key")
-        var info = (ok ? res["message"] : res["error"]) as? String ?? ""
-        if restart { info += "\n\n" + L("ro restarts to apply it. Your files and records stay as they are.") }
-        alert.informativeText = info
-        alert.addButton(withTitle: restart ? L("Restart ro now") : "OK")
-        if restart { alert.addButton(withTitle: L("Later")) }
-        NSApp.activate(ignoringOtherApps: true)
-        // 다시 시작: 이 종료 코드로 끝날 때만 ro(Python)가 같은 실행기 환경으로 자신을 다시 연다(ro/pet.py RESTART_EXIT)
-        if alert.runModal() == .alertFirstButtonReturn && restart { exit(75) }
     }
 
     @objc private func statusButtonPressed() {

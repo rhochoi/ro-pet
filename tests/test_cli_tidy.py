@@ -73,9 +73,9 @@ class CliTidyAliasTest(unittest.TestCase):
         self.assertIn("(별칭) ro organize로 합쳐짐", r.stdout)
 
     def test_prefix_commands_listed_in_ro_help(self):
-        """RO-AUD-107: _run 앞에서 갈라지는 license·learned·cards도 --help 목록에 보인다."""
+        """RO-AUD-107: _run 앞에서 갈라지는 learned·cards도 --help 목록에 보인다."""
         r = self.ro("--help")
-        for name in ("license", "learned", "cards"):
+        for name in ("learned", "cards"):
             self.assertRegex(r.stdout, rf"\n\s+{name}\s+\S")
 
 
