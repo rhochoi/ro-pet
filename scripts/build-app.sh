@@ -41,8 +41,12 @@ if [ -n "${APP_VERSION:-}" ]; then
   printf '%s' "$APP_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || die "APP_VERSION은 0.3.0처럼 숫자 세 마디여야 합니다."
   BUNDLE_VERSION="$APP_VERSION"
 fi
+# 발급기 주소: 소스(ro/licensenet.py ISSUER)나 빌드 때 RO_LICENSE_ISSUER 중 하나는 있어야 한다.
+# 둘 다 비면 앱의 'Get pro…'가 결제창을 못 연다(0.5.2가 이렇게 나갔다). 의도한 무료 전용 빌드면 ALLOW_NO_ISSUER=1.
 if [ -n "${RO_LICENSE_ISSUER:-}" ]; then
   printf '%s' "$RO_LICENSE_ISSUER" | grep -qE '^https://[^[:space:]"'"'"']+$' || die "RO_LICENSE_ISSUER는 https:// 주소여야 합니다."
+elif ! grep -qE '^ISSUER = "https://[^"[:space:]]+"' "$ROOT/ro/licensenet.py" && [ "${ALLOW_NO_ISSUER:-}" != "1" ]; then
+  die "발급기 주소가 없습니다. ro/licensenet.py의 ISSUER를 채우거나 RO_LICENSE_ISSUER=https://… 로 빌드하세요."
 fi
 
 say "정리: $APP"
@@ -126,15 +130,12 @@ mkdir -p "$HOME/.ro"
 exec "$DIR/Resources/python/bin/python3" -m ro pet >>"$HOME/.ro/pet.log" 2>&1
 LAUNCH
 if [ -n "${RO_LICENSE_ISSUER:-}" ]; then
-  # 빌드 시 지정한 발급기 주소를 실행기에 주입한다(exec 직전)
+  # 빌드 때 지정한 발급기 주소를 실행기에 넣는다(umask 바로 앞)
   python3 - "$APP/Contents/MacOS/ro" "$RO_LICENSE_ISSUER" <<'PY'
 import sys
 from pathlib import Path
 p = Path(sys.argv[1])
-issuer = sys.argv[2]
-txt = p.read_text(encoding="utf-8")
-line = f'export RO_LICENSE_ISSUER="{issuer}"\n'
-p.write_text(txt.replace("umask 077\n", line + "umask 077\n", 1), encoding="utf-8")
+p.write_text(p.read_text(encoding="utf-8").replace("umask 077\n", f'export RO_LICENSE_ISSUER="{sys.argv[2]}"\numask 077\n', 1), encoding="utf-8")
 PY
 fi
 chmod +x "$APP/Contents/MacOS/ro"

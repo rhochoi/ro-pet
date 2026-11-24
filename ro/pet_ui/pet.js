@@ -15,7 +15,7 @@ const ACTION_META = {
   press:       { label: "Press",       desc: "80 ms flatten, then spring · glad eyes (click/tap)" },
   breathe:     { label: "Breathe",     desc: "Three layers breathe out of phase (3 s loop)" },
   look_around: { label: "Look around", desc: "Eyes lead the glance" },
-  walk:        { label: "Walk",        desc: "Base, body, head step in sequence" },
+  walk:        { label: "Walk",        desc: "Steps forward, head first, layers following" },
   thinking:    { label: "Think",       desc: "Head tilts, off-beat pulse" },
   alert:       { label: "Startle",     desc: "Sudden hop, eyes widen" },
   drowsy:      { label: "Drowsy",      desc: "Head sinks, squinting, slow breaths" },
@@ -496,6 +496,9 @@ window.triggerAction = function(name, durationMs) {
   }
   eyesWrap.style.transform = "";
   clearHeadGaze();
+  petWrap.style.removeProperty("--walk-dir");   // 돌아다니기 걸음의 방향·박자는 그 걸음에만 쓴다
+  petWrap.style.removeProperty("--walk-step");
+  walkLean(0, 0);
 
   for (const act of ALL_ACTIONS) {
     petWrap.classList.remove(`action-${act.replace(/_/g, "-")}`);
@@ -524,6 +527,7 @@ window.triggerAction = function(name, durationMs) {
   if (meta) petCaption.textContent = meta.label;
 
   const dur = (durationMs !== undefined) ? durationMs : (ACTION_MS[name] || 4500);
+  if (name === "walk") walkLean(2, dur);
   if (dur > 0) {
     actionTimer = setTimeout(() => {
       window.triggerAction(null);
@@ -531,6 +535,32 @@ window.triggerAction = function(name, durationMs) {
   }
   return { ok: true, action: name, duration: dur };
 };
+
+/* 걷는 쪽으로 기울기: 사이트처럼 출발하며 기울고 서기 직전에 바로 선다(.ro-bot 인라인 transform). deg 0이면 바로 푼다 */
+var leanTimer = null;  // var: triggerAction이 이 줄보다 먼저 불려도 된다
+function walkLean(deg, ms) {
+  clearTimeout(leanTimer);
+  const dir = petWrap.style.getPropertyValue("--walk-dir") === "-1" ? -1 : 1;
+  if (!deg) { roBot.style.transition = ""; roBot.style.transform = ""; return; }
+  roBot.style.transformOrigin = "50% 100%";
+  roBot.style.transition = "transform 0.3s cubic-bezier(.22, 1, .36, 1)";
+  roBot.style.transform = `skewX(${(-deg * dir).toFixed(2)}deg)`;
+  if (ms > 0) leanTimer = setTimeout(() => { roBot.style.transform = ""; }, Math.max(0, ms - 300));
+}
+
+/* 돌아다니기: 호스트가 창을 dir 쪽으로 옮기는 ms 동안, 그 속도에 맞춘 박자(stepMs)로 걷고 leanDeg만큼 기운다.
+   말풍선·호버·잡기·반응 중이거나 사용자가 만든 동작·졸음 중이면 걷지 않고 false(호스트도 창을 옮기지 않는다) */
+const WANDER_YIELDS = ["look_around", "breathe", "walk", "thinking"];
+window.wanderStep = function(dir, ms, stepMs, leanDeg) {
+  if (!bubble.classList.contains("hidden") || isPetHover || RoMotion.busy() || petWrap.hasAttribute("data-react")) return false;
+  if (currentAction && !WANDER_YIELDS.includes(currentAction)) return false;
+  window.triggerAction("walk", ms);
+  petWrap.style.setProperty("--walk-dir", dir < 0 ? "-1" : "1");
+  petWrap.style.setProperty("--walk-step", (stepMs || 390) + "ms");
+  walkLean(leanDeg || 2, ms);
+  return true;
+};
+window.wanderStop = function() { if (currentAction === "walk") window.triggerAction(null); };
 
 /* 호스트 드래그 브리지 */
 window.onHostDragStart = function(fromPet) {};   /* 누름은 JS mousedown이 시작한다 */
