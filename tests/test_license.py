@@ -293,6 +293,10 @@ class LicenseNetTest(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.home = tmp.name
 
+    def test_shipped_issuer_is_set(self):
+        # 발급기 주소가 비면 'Get pro…'가 결제창을 못 연다(0.5.2 사고). 소스에는 운영 주소가 들어 있어야 한다.
+        self.assertRegex(self.net.ISSUER, r"^https://[^\s\"']+$")
+
     def test_token_is_private_random_and_only_its_hash_goes_in_the_buy_url(self):
         import hashlib
         t = self.net.token(self.home)

@@ -134,8 +134,8 @@ class SiteDesignTest(unittest.TestCase):
         self.assertIn("align-items: flex-start", demo)                  # 층은 왼쪽에 맞춘다
         for page in PAGES:
             self.assertIn('class="ro-mark', (SITE / page).read_text(encoding="utf-8"), page)
-        fav = (SITE / "assets/favicon.svg").read_text(encoding="utf-8")
-        self.assertIn('viewBox="0 0 16 16"', fav)                        # 16px 전용 픽셀 버전
+        fav = (SITE / "assets/icon.svg").read_text(encoding="utf-8")
+        self.assertEqual(fav, (SITE.parent / "assets/icon/ro.svg").read_text(encoding="utf-8"))  # 파비콘은 앱 아이콘 그대로
 
     def test_demo_is_static_pausable_and_described(self):
         js = (SITE / "assets/ro-hero/ro-hero.js").read_text(encoding="utf-8")

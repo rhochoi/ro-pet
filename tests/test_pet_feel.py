@@ -107,7 +107,7 @@ class FeelTest(unittest.TestCase):
 
     def test_loops_end_on_a_full_cycle(self):
         ms = self.page.evaluate("ACTION_MS")
-        for name, cycle in (("breathe", 3000), ("look_around", 3000), ("walk", 1300), ("thinking", 1600)):
+        for name, cycle in (("breathe", 3000), ("look_around", 3000), ("walk", 390), ("thinking", 1600)):
             self.assertEqual(ms[name] % cycle, 0, name)
 
     def test_one_shots_do_not_stay_frozen(self):

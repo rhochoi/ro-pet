@@ -210,6 +210,7 @@ const RoI18n = (() => {
     [/^아마도요 (\d+)개 — 직접 골라 주세요$/, "Maybe $1 — pick them yourself"],
     [/^옮김 (\d+)건 · 사본 내보냄 (\d+)건(?: · 건너뜀 (\d+)건)?$/, (m, a, b, k) => `Moved ${a} · removed ${b} local copies${k ? ` · skipped ${k}` : ""}`],
     [/^되돌렸어요 · 파일 (\d+)개 제자리로(?: · 바뀐 것 (\d+)개는 그대로)?$/, (m, n, k) => `Undone · ${n} back in place${k ? ` · ${k} changed since were left alone` : ""}`],
+    [/^학습 (켜짐|꺼짐) · 먼저 알림 (켜짐|꺼짐)( · 손쉬운 사용 권한 필요)?$/, (m, a, b, x) => `Learning ${a === "켜짐" ? "on" : "off"} · heads-ups ${b === "켜짐" ? "on" : "off"}${x ? " · needs Accessibility permission" : ""}`],
     [/^ro가 배운 것 · 학습 (켜짐|꺼짐) · 먼저 알림 (켜짐|꺼짐)$/, (m, a, b) => `What ro learned · learning ${a === "켜짐" ? "on" : "off"} · heads-ups ${b === "켜짐" ? "on" : "off"}`],
     [/^학습 (켜짐|꺼짐) · 먼저 알림 (켜짐|꺼짐)( · 손쉬운 사용 권한 필요)?$/,
       (m, a, b, ax) => `Learning ${a === "켜짐" ? "on" : "off"} · heads-ups ${b === "켜짐" ? "on" : "off"}${ax ? " · Accessibility needed" : ""}`],

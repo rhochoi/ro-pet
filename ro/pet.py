@@ -95,7 +95,7 @@ ACTION_LABELS = {
 ACTION_DESCS = {
     "breathe": "Three layers breathe out of phase (3 s loop)",
     "look_around": "Eyes lead the glance",
-    "walk": "Base, body, head step in sequence",
+    "walk": "Steps forward, head first, layers following",
     "thinking": "Head tilts, off-beat pulse",
     "alert": "Sudden hop, eyes widen",
     "drowsy": "Head sinks, squinting, deep breaths",

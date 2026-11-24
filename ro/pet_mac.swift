@@ -470,6 +470,31 @@ struct ReactGate {
     }
 }
 
+// MARK: - 돌아다니기 걸음. 사이트 ro(site/assets/ro-roam)의 걷기 물리를 그대로 옮긴 순수 계산
+// 사이트 ro는 64px 너비다. scale = 펫 너비 / 64로 거리·속도·가속을 같은 비율로 키운다.
+struct WanderWalk {
+    let path: [CGFloat]      // 60Hz마다 출발점에서 떨어진 거리(부호 포함)
+    let stepSec: Double      // 걸음 한 번(층이 한 번씩 튀는) 길이: 사이트 phase += 속도 × 0.105의 반주기
+    let leanDeg: Double      // 걷는 쪽으로 기우는 각도: 사이트 tilt = 속도 / 38
+    var seconds: Double { Double(path.count) / 60.0 }
+}
+
+func planWanderWalk(distance: CGFloat, siteSpeed: Double, scale: CGFloat) -> WanderWalk {
+    let dir: CGFloat = distance < 0 ? -1 : 1, goal = abs(distance), dt = 1.0 / 60.0
+    var pos: CGFloat = 0, v: CGFloat = 0, path: [CGFloat] = []
+    let top = CGFloat(siteSpeed) * scale
+    while path.count < 60 * 60 {
+        let remain = goal - pos
+        let want = min(top, sqrt(2 * 240 * scale * max(remain, 0)) + 6 * scale)   // 천천히 출발해 천천히 선다
+        v += min(max(want - v, -480 * scale * CGFloat(dt)), 480 * scale * CGFloat(dt))
+        pos += v * CGFloat(dt)
+        if remain < 1.5 * scale && v < 16 * scale { pos = goal }
+        path.append(min(pos, goal) * dir)
+        if pos >= goal { break }
+    }
+    return WanderWalk(path: path, stepSec: Double.pi / (siteSpeed * 0.105), leanDeg: min(siteSpeed / 38, 13))
+}
+
 // 창을 띄우지 않고 계산과 유리 갱신을 확인한다. 실패 항목을 출력하고 실패 수를 돌려준다
 func runCPUSelfTest() -> Int {
     var failures = 0
@@ -552,6 +577,11 @@ func runCPUSelfTest() -> Int {
     let build = (0..<200).map { $0 % 40 < 34 ? 92.0 : 60.0 }  // 링크 때마다 6초씩 60%로 꺼짐 → 평균 87%
     check(!fires(build).isEmpty, "빌드처럼 잠깐씩 꺼지는 부하도 평균이 85% 넘으면 울린다")
     check(machToSeconds(24_000_000, numer: 125, denom: 3) == 1.0, "mach 틱을 timebase로 초로 바꾼다")
+    let walk = planWanderWalk(distance: -300, siteSpeed: 70, scale: 1.4)
+    check(walk.path.last == -300 && zip(walk.path, walk.path.dropFirst()).allSatisfy { $1 <= $0 }, "돌아다니기는 목표까지 한 방향으로만 간다")
+    check(abs(walk.path[1] - walk.path[0]) < abs(walk.path[walk.path.count / 2] - walk.path[walk.path.count / 2 - 1]), "천천히 출발한다")
+    check(walk.seconds > 2.5 && walk.seconds < 5, "300pt를 사이트 속도(70×1.4)로 3~4초에 걷는다")
+    check(abs(walk.stepSec - 0.427) < 0.01 && abs(walk.leanDeg - 1.84) < 0.01, "걸음 박자·기울기는 사이트 공식")
     let helper = "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/1/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
     check(appName(forExecutablePath: helper) == "Google Chrome", "Chrome Helper는 Google Chrome으로 묶는다")
     check(appName(forExecutablePath: "/usr/sbin/mds_stores") == "mds_stores", ".app 밖이면 실행 파일 이름")
@@ -677,7 +707,6 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
     private var bubbleOpen: Bool = false
     private var placeTop: Bool = false
     private var placeLeft: Bool = false
-    private var wanderDirection: CGFloat = -1.0
     private var wanderTimer: Timer?
     private var dragTimer: Timer?
     private var fallTimer: Timer?
@@ -1768,24 +1797,55 @@ final class PetAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHand
         glassLayer.isHidden = false
     }
 
-    private func setupWanderTimer() {
-        wanderTimer = Timer.scheduledTimer(withTimeInterval: 3.2, repeats: true) { [weak self] _ in
-            guard let self = self, self.mode == .desktop, self.wanderEnabled, !self.bubbleOpen, !self.isDragging else { return }
+    // 돌아다니기: 사이트 ro처럼 2.4~6초 쉬다가, 가끔 화면 폭 30% 안쪽(최소 80px 상당)의 자리를 골라 여러 걸음을 걸어간다.
+    // 창 이동은 planWanderWalk가 미리 계산한 길을 60Hz로 따라가고, 펫(wanderStep)은 같은 속도에 맞춘 박자로 걷는다.
+    private var wanderMoveTimer: Timer?
+
+    private func setupWanderTimer() { scheduleWander(after: Double.random(in: 1.5...4)) }
+
+    private func scheduleWander(after sec: Double) {
+        wanderTimer?.invalidate()
+        wanderTimer = Timer.scheduledTimer(withTimeInterval: sec, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            self.scheduleWander(after: Double.random(in: 2.4...6))
+            guard self.mode == .desktop, self.wanderEnabled, !self.bubbleOpen, !self.isDragging,
+                  self.wanderMoveTimer == nil, Double.random(in: 0..<1) < 0.6 else { return }
             let vf = self.currentVisibleFrame()
-            var frame = self.panel.frame
-            let step: CGFloat = 14.0 * self.wanderDirection
-            var nextX = frame.origin.x + step
-            let minX = vf.minX + 16
-            let maxX = max(minX, vf.maxX - frame.width - 16)
-            if nextX <= minX {
-                nextX = minX
-                self.wanderDirection = 1.0
-            } else if nextX >= maxX {
-                nextX = maxX
-                self.wanderDirection = -1.0
+            let x = self.panel.frame.origin.x
+            let minX = vf.minX + 16, maxX = max(vf.minX + 16, vf.maxX - self.panel.frame.width - 16)
+            let scale = 23 * 3.8 * (petSizeScales[self.sizeName] ?? 1) / 64
+            let span = vf.width * 0.3
+            var to = x + CGFloat.random(in: -span...span)
+            if abs(to - x) < 80 * scale { to = x + (Bool.random() ? 1 : -1) * 80 * scale }
+            to = min(max(to, minX), maxX)
+            guard abs(to - x) >= 20 * scale else { return }
+            let walk = planWanderWalk(distance: to - x, siteSpeed: Double.random(in: 55...90), scale: scale)
+            let dir = to < x ? -1 : 1
+            let js = "window.wanderStep ? window.wanderStep(\(dir), \(Int(walk.seconds * 1000)), \(Int(walk.stepSec * 1000)), \(String(format: "%.2f", walk.leanDeg))) : false"
+            self.webView?.evaluateJavaScript(js) { [weak self] result, _ in
+                guard let self = self, (result as? Bool) == true else { return }
+                self.walkWindow(walk)
             }
-            frame.origin = self.clampOrigin(NSPoint(x: nextX, y: frame.origin.y), size: frame.size)
-            self.panel.setFrame(frame, display: true, animate: true)
+        }
+    }
+
+    private func walkWindow(_ walk: WanderWalk) {
+        let startX = panel.frame.origin.x
+        let t0 = CACurrentMediaTime()
+        wanderMoveTimer?.invalidate()
+        wanderMoveTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+            guard let self = self else { timer.invalidate(); return }
+            // 잡거나 말풍선을 열거나 돌아다니기를 끄면 그 자리에서 멈추고 펫도 걸음을 멈춘다
+            if self.isDragging || self.bubbleOpen || !self.wanderEnabled {
+                timer.invalidate(); self.wanderMoveTimer = nil
+                self.webView?.evaluateJavaScript("window.wanderStop && window.wanderStop();", completionHandler: nil)
+                return
+            }
+            let i = min(walk.path.count - 1, Int((CACurrentMediaTime() - t0) * 60))
+            var frame = self.panel.frame
+            frame.origin = self.clampOrigin(NSPoint(x: startX + walk.path[i], y: frame.origin.y), size: frame.size)
+            self.panel.setFrame(frame, display: true)
+            if i >= walk.path.count - 1 { timer.invalidate(); self.wanderMoveTimer = nil }
         }
     }
 
