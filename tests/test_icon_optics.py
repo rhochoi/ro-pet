@@ -1,5 +1,5 @@
 """아이콘 광학 보정 검증(Track A):
-1. site/assets/favicon.svg 직사각형(rx=0) 눈 0개 및 캡슐 곡률·종횡비 검증
+1. (사이트 파비콘은 앱 아이콘과 같은 파일이라 tests/test_site.py가 같음을 검사한다)
 2. assets/icon/ro.svg 두 눈 종횡비 1.15 ~ 1.55 및 캡슐 반경(rx = width / 2) 검증
 3. 16 / 32 / 64px 실물 래스터 이미지에서 두 눈이 뭉개지지 않고 분리 성분(connected components) 정확히 2개로 검출되는지 검증
 4. assets/icon/ro.icns 및 다중 해상도 PNG(16~1024px) 유효성 검증
@@ -17,7 +17,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RO_SVG = ROOT / "assets/icon/ro.svg"
 RO_ICNS = ROOT / "assets/icon/ro.icns"
-FAVICON_SVG = ROOT / "site/assets/favicon.svg"
 SIZES = (16, 32, 64, 128, 256, 512, 1024)
 
 
@@ -128,32 +127,6 @@ def detect_eye_components(rows, x_range, y_range, lum_threshold=0.58):
 
 
 class IconOpticsTest(unittest.TestCase):
-    def test_favicon_has_zero_rectangular_eyes_and_valid_aspect_ratio(self):
-        tree = ET.parse(FAVICON_SVG)
-        root = tree.getroot()
-        self.assertEqual(root.attrib.get("viewBox"), "0 0 16 16")
-        rects = [el for el in root.iter() if el.tag.endswith("rect")]
-        # 다크 배경 타일(width=16)을 제외한 어두운(#1B1B1F / #1A1917) 사각형이 눈이다
-        eye_rects = [
-            r for r in rects
-            if r.attrib.get("fill", "").upper() in ("#1B1B1F", "#1A1917")
-            and float(r.attrib.get("width", "0")) < 16
-        ]
-        self.assertEqual(len(eye_rects), 2, "favicon.svg에는 두 눈이 있어야 합니다")
-        rect_eyes_without_rx = [
-            r for r in eye_rects
-            if float(r.attrib.get("rx", "0") or 0) <= 0
-        ]
-        self.assertEqual(len(rect_eyes_without_rx), 0, "favicon.svg에 직사각형(rx=0) 눈이 남아 있습니다")
-        for r in eye_rects:
-            w = float(r.attrib["width"])
-            h = float(r.attrib["height"])
-            rx = float(r.attrib.get("rx", "0"))
-            ratio = h / w
-            self.assertGreaterEqual(ratio, 1.15, f"favicon 눈 종횡비 과소: {ratio:.3f}")
-            self.assertLessEqual(ratio, 1.55, f"favicon 눈 종횡비 과대: {ratio:.3f}")
-            self.assertAlmostEqual(rx, w / 2, places=2, msg="favicon 눈은 부드러운 캡슐(rx=width/2)이어야 합니다")
-
     def test_ro_svg_eye_aspect_ratio_and_capsule_curvature(self):
         tree = ET.parse(RO_SVG)
         root = tree.getroot()
@@ -196,27 +169,6 @@ class IconOpticsTest(unittest.TestCase):
                 left_xs = [x for x, _ in comps[0]]
                 right_xs = [x for x, _ in comps[1]]
                 self.assertLess(max(left_xs), min(right_xs), f"ro-{s}.png 두 눈의 가로 분리가 부족합니다")
-
-    @unittest.skipUnless(shutil.which("qlmanage") and shutil.which("sips"), "macOS qlmanage/sips 필요")
-    def test_favicon_raster_separates_two_eyes_at_16_32_64(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            t = Path(tmp)
-            subprocess.run(["qlmanage", "-t", "-s", "64", "-o", str(t), str(FAVICON_SVG)],
-                           check=True, capture_output=True)
-            master = t / "favicon.svg.png"
-            self.assertTrue(master.is_file())
-            for s in (16, 32, 64):
-                out = t / f"fav-{s}.png"
-                if s == 64:
-                    shutil.copy2(master, out)
-                else:
-                    subprocess.run(["sips", "-z", str(s), str(s), str(master), "--out", str(out)],
-                                   check=True, capture_output=True)
-                w, h, rows = decode_png_rgba(out)
-                self.assertEqual((w, h), (s, s))
-                # favicon.svg 머리 안 눈 영역(머리 상단 모서리 바깥 배경 제외): x 36%~63%, y 19%~33%
-                comps = detect_eye_components(rows, (0.36, 0.63), (0.19, 0.33), lum_threshold=0.62)
-                self.assertEqual(len(comps), 2, f"favicon {s}px 래스터 눈 분리 성분={len(comps)}")
 
     def test_ro_icns_is_valid_and_unpacks_all_standard_iconset_sizes(self):
         self.assertTrue(RO_ICNS.is_file(), "assets/icon/ro.icns 파일이 없습니다")
